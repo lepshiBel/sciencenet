@@ -21,6 +21,11 @@ const handleTagSelect = (tag: string) => {
   store.selectTag(tag);
   router.push('/');
 };
+
+const handleAuthorSelect = (author: string) => {
+  store.selectAuthor(author);
+  router.push('/');
+};
 </script>
 
 <template>
@@ -55,7 +60,9 @@ const handleTagSelect = (tag: string) => {
         @edit="(art) => (editingArticle = art)"
         @delete="store.deleteArticle"
         @open-reader="(art) => (store.activeArticle = art)"
+        @cite="(art) => (store.citingArticle = art)"
         @select-tag="handleTagSelect"
+        @select-author="handleAuthorSelect"
         @add-comment="({ articleId, text }) => store.addComment(articleId, text)"
       />
     </div>

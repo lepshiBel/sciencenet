@@ -3,6 +3,8 @@ import AppHeader from './components/AppHeader.vue';
 import UserProfileSidebar from './components/UserProfileSidebar.vue';
 import PopularArticlesSidebar from './components/PopularArticlesSidebar.vue';
 import ArticleReaderModal from './components/ArticleReaderModal.vue';
+import CitationModal from './components/CitationModal.vue';
+import ToastContainer from './components/ToastContainer.vue';
 </script>
 
 <template>
@@ -24,6 +26,8 @@ import ArticleReaderModal from './components/ArticleReaderModal.vue';
     </main>
 
     <ArticleReaderModal />
+    <CitationModal />
+    <ToastContainer />
   </div>
 </template>
 

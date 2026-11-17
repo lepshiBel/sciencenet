@@ -6,6 +6,7 @@ import AppIcon from './AppIcon.vue';
 defineProps<{
   selected: ScienceField | 'ALL';
   selectedTag: string | null;
+  selectedAuthor: string | null;
   onlyMine: boolean;
   sortBy: SortOption;
 }>();
@@ -13,6 +14,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'select', field: ScienceField | 'ALL'): void;
   (e: 'clear-tag'): void;
+  (e: 'clear-author'): void;
   (e: 'toggle-mine'): void;
   (e: 'update:sortBy', value: SortOption): void;
 }>();
@@ -68,7 +70,19 @@ const getActiveChipStyle = (field: ScienceField) => {
           <span>Moje publikacje</span>
         </button>
 
-        <span v-if="selectedTag" class="active-tag-pill">
+        <span v-if="selectedAuthor" class="active-filter-pill">
+          <AppIcon name="user" :size="12" />
+          <span>{{ selectedAuthor }}</span>
+          <button
+            type="button"
+            title="Usuń filtr autora"
+            @click="emit('clear-author')"
+          >
+            <AppIcon name="close" :size="12" />
+          </button>
+        </span>
+
+        <span v-if="selectedTag" class="active-filter-pill mono">
           <span>#{{ selectedTag }}</span>
           <button
             type="button"
@@ -185,11 +199,10 @@ const getActiveChipStyle = (field: ScienceField) => {
   color: var(--primary);
 }
 
-.active-tag-pill {
-  font-family: var(--font-mono);
+.active-filter-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   background: var(--primary-soft);
@@ -199,7 +212,11 @@ const getActiveChipStyle = (field: ScienceField) => {
   font-weight: 600;
 }
 
-.active-tag-pill button {
+.active-filter-pill.mono {
+  font-family: var(--font-mono);
+}
+
+.active-filter-pill button {
   background: none;
   border: none;
   color: inherit;

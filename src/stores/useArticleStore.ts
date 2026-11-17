@@ -8,11 +8,18 @@ import type {
   ThemeMode,
   UserProfile,
 } from '../types/article';
-import { INITIAL_ARTICLES } from '../data/mockArticles';
+import { INITIAL_ARTICLES, SCIENCE_FIELDS } from '../data/mockArticles';
 
 const STORAGE_KEY = 'sciencenet_articles_v2';
 const PROFILE_KEY = 'sciencenet_profile_v1';
 const THEME_KEY = 'sciencenet_theme_v1';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
 
 const DEFAULT_PROFILE: UserProfile = {
   name: 'Elisey Avvakumov',
@@ -24,6 +31,30 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 export const useArticleStore = defineStore('articles', () => {
+  // --- Toast Notifications ---
+  const toasts = ref<ToastItem[]>([]);
+
+  const dismissToast = (id: string) => {
+    toasts.value = toasts.value.filter((t) => t.id !== id);
+  };
+
+  const notify = (
+    message: string,
+    options?: { actionLabel?: string; onAction?: () => void; duration?: number }
+  ) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    toasts.value.push({
+      id,
+      message,
+      actionLabel: options?.actionLabel,
+      onAction: options?.onAction,
+    });
+
+    setTimeout(() => {
+      dismissToast(id);
+    }, options?.duration ?? 4000);
+  };
+
   // --- Theme Management ---
   const savedTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
   const theme = ref<ThemeMode>(savedTheme === 'dark' ? 'dark' : 'light');
@@ -38,6 +69,9 @@ export const useArticleStore = defineStore('articles', () => {
   const toggleTheme = () => {
     theme.value = theme.value === 'light' ? 'dark' : 'light';
     applyTheme(theme.value);
+    notify(theme.value === 'dark' ? 'Włączono motyw ciemny' : 'Włączono motyw jasny', {
+      duration: 2200,
+    });
   };
 
   // --- User Profile ---
@@ -123,17 +157,20 @@ export const useArticleStore = defineStore('articles', () => {
         });
       });
     }
+    notify('Zaktualizowano profil badacza');
   };
 
   // --- Filter, Search & Sort States ---
   const searchQuery = ref<string>('');
   const selectedField = ref<ScienceField | 'ALL'>('ALL');
   const selectedTag = ref<string | null>(null);
+  const selectedAuthor = ref<string | null>(null);
   const onlyMine = ref<boolean>(false);
   const sortBy = ref<SortOption>('newest');
 
-  // Active article for full-screen Reader Modal
+  // Modals state
   const activeArticle = ref<Article | null>(null);
+  const citingArticle = ref<Article | null>(null);
 
   watch(
     articles,
@@ -159,7 +196,11 @@ export const useArticleStore = defineStore('articles', () => {
         !selectedTag.value ||
         article.tags.some((t) => t.toLowerCase() === selectedTag.value?.toLowerCase());
 
-      const matchesAuthor =
+      const matchesSelectedAuthor =
+        !selectedAuthor.value ||
+        article.author.trim().toLowerCase() === selectedAuthor.value.trim().toLowerCase();
+
+      const matchesMine =
         !onlyMine.value ||
         Boolean(article.isOwn) ||
         article.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase();
@@ -169,7 +210,13 @@ export const useArticleStore = defineStore('articles', () => {
         article.title.toLowerCase().includes(query) ||
         article.tags.some((t) => t.toLowerCase().includes(query));
 
-      return matchesField && matchesTag && matchesAuthor && matchesSearch;
+      return (
+        matchesField &&
+        matchesTag &&
+        matchesSelectedAuthor &&
+        matchesMine &&
+        matchesSearch
+      );
     });
 
     return [...filtered].sort((a, b) => {
@@ -208,6 +255,16 @@ export const useArticleStore = defineStore('articles', () => {
       .slice(0, 10);
   });
 
+  // Distribution of publications across scientific fields
+  const fieldStats = computed(() => {
+    const total = articles.value.length || 1;
+    return SCIENCE_FIELDS.map((field) => {
+      const count = articles.value.filter((a) => a.field === field).length;
+      const percentage = Math.round((count / total) * 100);
+      return { field, count, percentage };
+    }).sort((a, b) => b.count - a.count);
+  });
+
   // --- Actions ---
   const addArticle = (payload: ArticlePayload): void => {
     const cleanAuthor = payload.author.trim() || currentUser.value.name;
@@ -231,6 +288,7 @@ export const useArticleStore = defineStore('articles', () => {
       comments: [],
     };
     articles.value.unshift(newArticle);
+    notify('Opublikowano nowy artykuł naukowy');
   };
 
   const updateArticle = (id: string, payload: ArticlePayload): void => {
@@ -247,13 +305,28 @@ export const useArticleStore = defineStore('articles', () => {
     target.tags = payload.tags;
     target.content = payload.content.trim();
     target.imageUrl = payload.imageUrl?.trim() || undefined;
+    notify('Zapisano zmiany w publikacji');
   };
 
   const deleteArticle = (id: string): void => {
-    articles.value = articles.value.filter((a) => a.id !== id);
+    const index = articles.value.findIndex((a) => a.id === id);
+    if (index === -1) return;
+
+    const removedCopy: Article = JSON.parse(JSON.stringify(articles.value[index]));
+    articles.value.splice(index, 1);
+
     if (activeArticle.value?.id === id) {
       activeArticle.value = null;
     }
+
+    notify('Usunięto publikację', {
+      actionLabel: 'Cofnij',
+      duration: 5000,
+      onAction: () => {
+        articles.value.splice(Math.min(index, articles.value.length), 0, removedCopy);
+        notify('Przywrócono publikację', { duration: 2200 });
+      },
+    });
   };
 
   const toggleLike = (id: string): void => {
@@ -269,6 +342,10 @@ export const useArticleStore = defineStore('articles', () => {
     if (!target) return;
 
     target.isSaved = !target.isSaved;
+    notify(
+      target.isSaved ? 'Zapisano w czytelni' : 'Usunięto z czytelni',
+      { duration: 2200 }
+    );
   };
 
   const addComment = (articleId: string, text: string, author?: string): void => {
@@ -286,16 +363,30 @@ export const useArticleStore = defineStore('articles', () => {
       text: trimmed,
       createdAt: new Date().toISOString(),
     });
+    notify('Dodano komentarz', { duration: 2200 });
   };
 
   const selectTag = (tag: string | null): void => {
     selectedTag.value = selectedTag.value === tag ? null : tag;
   };
 
+  const selectAuthor = (authorName: string | null): void => {
+    if (!authorName) {
+      selectedAuthor.value = null;
+      return;
+    }
+    selectedAuthor.value =
+      selectedAuthor.value?.toLowerCase() === authorName.trim().toLowerCase()
+        ? null
+        : authorName.trim();
+    onlyMine.value = false;
+  };
+
   const resetFilters = (): void => {
     searchQuery.value = '';
     selectedField.value = 'ALL';
     selectedTag.value = null;
+    selectedAuthor.value = null;
     onlyMine.value = false;
     sortBy.value = 'newest';
   };
@@ -315,9 +406,70 @@ export const useArticleStore = defineStore('articles', () => {
       };
     });
     resetFilters();
+    notify('Przywrócono domyślny zbiór publikacji');
+  };
+
+  // --- JSON Backup Export / Import ---
+  const exportArticlesJson = (): void => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      platform: 'ScienceNet',
+      articles: articles.value,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sciencenet-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify('Wyeksportowano archiwum publikacji (.json)');
+  };
+
+  const importArticlesJson = (rawJson: string): boolean => {
+    try {
+      const parsed = JSON.parse(rawJson);
+      const list = Array.isArray(parsed) ? parsed : parsed?.articles;
+      if (!Array.isArray(list)) {
+        notify('Nieprawidłowy format pliku JSON');
+        return false;
+      }
+
+      const sanitized: Article[] = list
+        .filter((item) => item && typeof item.title === 'string' && typeof item.content === 'string')
+        .map((item, idx) => ({
+          id: item.id || `art-imp-${Date.now()}-${idx}`,
+          title: item.title,
+          author: item.author || 'Autor zaimportowany',
+          isOwn: Boolean(item.isOwn),
+          field: SCIENCE_FIELDS.includes(item.field) ? item.field : 'Informatyka',
+          publicationType: item.publicationType || 'Artykuł badawczy',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          content: item.content,
+          imageUrl: item.imageUrl || undefined,
+          createdAt: item.createdAt || new Date().toISOString(),
+          likes: typeof item.likes === 'number' ? item.likes : 0,
+          isLiked: Boolean(item.isLiked),
+          isSaved: Boolean(item.isSaved),
+          comments: Array.isArray(item.comments) ? item.comments : [],
+        }));
+
+      articles.value = sanitized;
+      resetFilters();
+      notify(`Zaimportowano ${sanitized.length} publikacji z archiwum`);
+      return true;
+    } catch {
+      notify('Błąd podczas odczytu pliku JSON');
+      return false;
+    }
   };
 
   return {
+    toasts,
+    notify,
+    dismissToast,
     theme,
     toggleTheme,
     currentUser,
@@ -326,13 +478,16 @@ export const useArticleStore = defineStore('articles', () => {
     searchQuery,
     selectedField,
     selectedTag,
+    selectedAuthor,
     onlyMine,
     sortBy,
     activeArticle,
+    citingArticle,
     filteredArticles,
     topLikedArticles,
     savedArticles,
     popularTags,
+    fieldStats,
     addArticle,
     updateArticle,
     deleteArticle,
@@ -340,7 +495,10 @@ export const useArticleStore = defineStore('articles', () => {
     toggleSave,
     addComment,
     selectTag,
+    selectAuthor,
     resetFilters,
     resetDemoData,
+    exportArticlesJson,
+    importArticlesJson,
   };
 });
