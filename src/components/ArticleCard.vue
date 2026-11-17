@@ -399,6 +399,7 @@ const submitComment = () => {
 }
 
 .article-image-wrapper {
+  flex-shrink: 0;
   margin-top: 2px;
   border-radius: var(--radius-md);
   overflow: hidden;

@@ -288,14 +288,17 @@ onUnmounted(() => {
 }
 
 .reader-figure {
+  flex-shrink: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
+  background: var(--bg-subtle);
 }
 
 .reader-figure img {
   width: 100%;
-  max-height: 420px;
+  height: auto;
+  max-height: 440px;
   object-fit: cover;
   display: block;
 }
