@@ -33,6 +33,7 @@ const cancelEditing = () => {
     <ArticleForm
       :editing-article="editingArticle"
       :default-author="store.currentUser.name"
+      :avatar-url="store.currentUser.avatarUrl"
       @submit="handleFormSubmit"
       @cancel="cancelEditing"
     />
@@ -40,10 +41,12 @@ const cancelEditing = () => {
     <FieldFilterBar
       :selected="store.selectedField"
       :selected-tag="store.selectedTag"
+      :selected-author="store.selectedAuthor"
       :only-mine="store.onlyMine"
       :sort-by="store.sortBy"
       @select="(field) => (store.selectedField = field)"
       @clear-tag="store.selectedTag = null"
+      @clear-author="store.selectedAuthor = null"
       @toggle-mine="store.onlyMine = !store.onlyMine"
       @update:sort-by="(val) => (store.sortBy = val)"
     />
@@ -54,19 +57,22 @@ const cancelEditing = () => {
         :key="article.id"
         :article="article"
         :active-tag="store.selectedTag"
+        :active-author="store.selectedAuthor"
         @toggle-like="store.toggleLike"
         @toggle-save="store.toggleSave"
         @edit="startEditing"
         @delete="store.deleteArticle"
         @open-reader="(art) => (store.activeArticle = art)"
+        @cite="(art) => (store.citingArticle = art)"
         @select-tag="store.selectTag"
+        @select-author="store.selectAuthor"
         @add-comment="({ articleId, text }) => store.addComment(articleId, text)"
       />
     </div>
 
     <div v-else class="card empty-state">
       <h3>Brak publikacji spełniających kryteria</h3>
-      <p>Zmień frazę wyszukiwania, wybrany tag lub dziedzinę nauki.</p>
+      <p>Zmień frazę wyszukiwania, autora, wybrany tag lub dziedzinę nauki.</p>
       <button
         type="button"
         class="reset-filters-btn"

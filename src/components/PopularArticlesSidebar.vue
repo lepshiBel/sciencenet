@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useArticleStore } from '../stores/useArticleStore';
+import { FIELD_STYLES } from '../data/mockArticles';
+import type { ScienceField } from '../types/article';
 import AppIcon from './AppIcon.vue';
 
 const store = useArticleStore();
 const router = useRouter();
 const route = useRoute();
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const handleTagClick = (tagName: string) => {
   store.selectTag(tagName);
@@ -14,15 +18,36 @@ const handleTagClick = (tagName: string) => {
   }
 };
 
-const handleReset = () => {
-  if (confirm('Przywrócić domyślne artykuły demonstracyjne?')) {
-    store.resetDemoData();
+const handleFieldClick = (field: ScienceField) => {
+  store.selectedField = store.selectedField === field ? 'ALL' : field;
+  if (route.path !== '/') {
+    router.push('/');
   }
+};
+
+const triggerImport = () => {
+  fileInputRef.value?.click();
+};
+
+const handleFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === 'string') {
+      store.importArticlesJson(reader.result);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 };
 </script>
 
 <template>
   <aside class="sidebar-wrapper">
+    <!-- Top Liked Publications -->
     <div class="card sidebar-card">
       <h3 class="sidebar-title">
         <AppIcon name="trending" :size="16" />
@@ -53,6 +78,41 @@ const handleReset = () => {
       <p v-else class="empty-note">Brak publikacji do wyświetlenia.</p>
     </div>
 
+    <!-- Discipline Distribution Analytics -->
+    <div class="card sidebar-card">
+      <h3 class="sidebar-title">
+        <AppIcon name="chart" :size="15" />
+        <span>Rozkład dziedzin</span>
+      </h3>
+
+      <ul class="analytics-list">
+        <li
+          v-for="stat in store.fieldStats"
+          :key="stat.field"
+          class="analytics-item"
+          :class="{ active: store.selectedField === stat.field }"
+          @click="handleFieldClick(stat.field)"
+        >
+          <div class="analytics-header">
+            <span class="analytics-name">{{ stat.field }}</span>
+            <span class="analytics-nums">
+              {{ stat.count }} ({{ stat.percentage }}%)
+            </span>
+          </div>
+          <div class="progress-track">
+            <div
+              class="progress-fill"
+              :style="{
+                width: `${stat.percentage}%`,
+                backgroundColor: FIELD_STYLES[stat.field].text,
+              }"
+            ></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Keywords Cloud -->
     <div v-if="store.popularTags.length > 0" class="card sidebar-card">
       <h3 class="sidebar-title">
         <AppIcon name="tag" :size="15" />
@@ -74,11 +134,45 @@ const handleReset = () => {
       </div>
     </div>
 
+    <!-- Data Archive & Backup -->
     <div class="card sidebar-card">
+      <h3 class="sidebar-title">
+        <AppIcon name="feed" :size="15" />
+        <span>Archiwum danych</span>
+      </h3>
       <p class="info-text">
-        Dane przechowywane są lokalnie w pamięci przeglądarki (<code>localStorage</code>).
+        Kopia zapasowa repozytorium (<code>localStorage</code>) w formacie JSON.
       </p>
-      <button type="button" class="reset-btn" @click="handleReset">
+
+      <div class="archive-actions">
+        <button
+          type="button"
+          class="archive-btn"
+          @click="store.exportArticlesJson"
+        >
+          <AppIcon name="download" :size="14" />
+          <span>Eksportuj</span>
+        </button>
+
+        <button
+          type="button"
+          class="archive-btn"
+          @click="triggerImport"
+        >
+          <AppIcon name="upload" :size="14" />
+          <span>Importuj</span>
+        </button>
+
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept=".json,application/json"
+          class="hidden-file-input"
+          @change="handleFileChange"
+        />
+      </div>
+
+      <button type="button" class="reset-btn" @click="store.resetDemoData">
         Przywróć dane startowe
       </button>
     </div>
@@ -95,31 +189,31 @@ const handleReset = () => {
 }
 
 .sidebar-card {
-  padding: 18px;
+  padding: 16px 18px;
 }
 
 .sidebar-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-main);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .popular-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 11px;
 }
 
 .popular-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding-bottom: 12px;
+  padding-bottom: 11px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
@@ -136,7 +230,7 @@ const handleReset = () => {
 .rank {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--primary);
   background: var(--primary-soft);
   border: 1px solid var(--primary-border);
@@ -152,7 +246,7 @@ const handleReset = () => {
 
 .item-title {
   font-family: var(--font-serif);
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.3;
@@ -169,8 +263,8 @@ const handleReset = () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 5px;
-  font-size: 0.76rem;
+  margin-top: 4px;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -190,6 +284,67 @@ const handleReset = () => {
   white-space: nowrap;
 }
 
+/* Field Analytics */
+.analytics-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.analytics-item {
+  cursor: pointer;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s;
+}
+
+.analytics-item:hover,
+.analytics-item.active {
+  background: var(--bg-subtle);
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.analytics-name {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.analytics-item.active .analytics-name {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.analytics-nums {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Tags Cloud */
 .tags-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -206,7 +361,7 @@ const handleReset = () => {
   border: 1px solid var(--border);
   background: var(--bg-subtle);
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   transition: all 0.15s;
 }
 
@@ -232,10 +387,41 @@ const handleReset = () => {
   color: var(--text-muted);
 }
 
+/* Archive & Backup */
 .info-text {
   font-size: 0.78rem;
   color: var(--text-muted);
   margin-bottom: 10px;
+}
+
+.archive-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.archive-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.79rem;
+  font-weight: 600;
+  transition: filter 0.15s;
+}
+
+.archive-btn:hover {
+  filter: brightness(0.95);
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 .reset-btn {
@@ -245,7 +431,7 @@ const handleReset = () => {
   border-radius: var(--radius-md);
   background: var(--bg-subtle);
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   transition: background-color 0.2s;
 }

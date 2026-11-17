@@ -7,6 +7,7 @@ import AppIcon from './AppIcon.vue';
 const props = defineProps<{
   article: Article;
   activeTag?: string | null;
+  activeAuthor?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -15,7 +16,9 @@ const emit = defineEmits<{
   (e: 'edit', article: Article): void;
   (e: 'delete', id: string): void;
   (e: 'open-reader', article: Article): void;
+  (e: 'cite', article: Article): void;
   (e: 'select-tag', tag: string): void;
+  (e: 'select-author', author: string): void;
   (e: 'add-comment', payload: { articleId: string; text: string }): void;
 }>();
 
@@ -39,7 +42,6 @@ const fieldBadgeStyle = computed(() => {
   };
 });
 
-// Deterministic academic tag color index (0..4) based on tag text
 const getTagToneClass = (tag: string): string => {
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
@@ -64,12 +66,6 @@ const formatDate = (isoString: string): string => {
   }).format(date);
 };
 
-const handleDelete = () => {
-  if (confirm(`Czy na pewno chcesz usunąć publikację „${props.article.title}”?`)) {
-    emit('delete', props.article.id);
-  }
-};
-
 const submitComment = () => {
   const text = newCommentText.value.trim();
   if (!text) return;
@@ -91,7 +87,15 @@ const submitComment = () => {
           {{ article.field }}
         </span>
         <span class="type-badge">{{ article.publicationType }}</span>
-        <span class="author-name">{{ article.author }}</span>
+        <button
+          type="button"
+          class="author-link"
+          :class="{ active: activeAuthor?.toLowerCase() === article.author.toLowerCase() }"
+          title="Pokaż publikacje tego autora"
+          @click="emit('select-author', article.author)"
+        >
+          {{ article.author }}
+        </button>
         <span class="dot">•</span>
         <time :datetime="article.createdAt" class="publish-date">
           {{ formatDate(article.createdAt) }}
@@ -131,7 +135,7 @@ const submitComment = () => {
           type="button"
           class="icon-btn icon-only delete-btn"
           title="Usuń publikację"
-          @click="handleDelete"
+          @click="emit('delete', article.id)"
         >
           <AppIcon name="trash" :size="14" />
         </button>
@@ -191,6 +195,16 @@ const submitComment = () => {
           <AppIcon name="comment" :size="15" />
           <span>Komentarze</span>
           <span class="count-pill">{{ article.comments.length }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="action-btn"
+          title="Generuj cytowanie APA / BibTeX"
+          @click="emit('cite', article)"
+        >
+          <AppIcon name="quote" :size="14" />
+          <span>Cytuj</span>
         </button>
       </div>
 
@@ -289,9 +303,21 @@ const submitComment = () => {
   color: var(--text-muted);
 }
 
-.author-name {
+.author-link {
+  background: none;
+  border: none;
+  padding: 0;
   font-weight: 600;
+  font-size: 0.8rem;
   color: var(--text-main);
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.author-link:hover,
+.author-link.active {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .dot,
@@ -388,7 +414,6 @@ const submitComment = () => {
   display: block;
 }
 
-/* Academic Muted Tag Tones */
 .article-tags {
   display: flex;
   flex-wrap: wrap;
@@ -457,6 +482,7 @@ const submitComment = () => {
 .footer-left {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -464,13 +490,13 @@ const submitComment = () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-subtle);
   color: var(--text-secondary);
   font-weight: 600;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   transition: all 0.15s;
 }
 

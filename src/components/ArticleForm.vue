@@ -12,6 +12,7 @@ import AppIcon from './AppIcon.vue';
 const props = defineProps<{
   editingArticle?: Article | null;
   defaultAuthor?: string;
+  avatarUrl?: string;
 }>();
 
 const emit = defineEmits<{
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
+const isExpanded = ref(false);
 const title = ref('');
 const author = ref(props.defaultAuthor || '');
 const field = ref<ScienceField>('Informatyka');
@@ -35,6 +37,7 @@ watch(
     errorMsg.value = '';
     tagInput.value = '';
     if (article) {
+      isExpanded.value = true;
       title.value = article.title;
       author.value = article.author;
       field.value = article.field;
@@ -63,6 +66,14 @@ watch(
     }
   }
 );
+
+const collapseForm = () => {
+  errorMsg.value = '';
+  if (props.editingArticle) {
+    emit('cancel');
+  }
+  isExpanded.value = false;
+};
 
 const addTag = () => {
   const cleaned = tagInput.value
@@ -115,12 +126,39 @@ const handleSubmit = () => {
     content.value = '';
     imageUrl.value = '';
     errorMsg.value = '';
+    isExpanded.value = false;
   }
 };
 </script>
 
 <template>
-  <form class="card article-form" @submit.prevent="handleSubmit">
+  <!-- Compact Collapsed Trigger Bar -->
+  <div v-if="!isExpanded && !editingArticle" class="card composer-collapsed">
+    <img
+      v-if="avatarUrl"
+      :src="avatarUrl"
+      alt=""
+      class="composer-avatar"
+    />
+    <button
+      type="button"
+      class="composer-prompt"
+      @click="isExpanded = true"
+    >
+      Podziel się wynikami badań, hipotezą lub nową publikacją...
+    </button>
+    <button
+      type="button"
+      class="btn btn-primary compact-btn"
+      @click="isExpanded = true"
+    >
+      <AppIcon name="plus" :size="15" />
+      <span>Nowy wpis</span>
+    </button>
+  </div>
+
+  <!-- Expanded Publication / Edit Form -->
+  <form v-else class="card article-form" @submit.prevent="handleSubmit">
     <div class="form-header">
       <div class="header-title">
         <AppIcon :name="editingArticle ? 'edit' : 'plus'" :size="16" />
@@ -130,12 +168,11 @@ const handleSubmit = () => {
       </div>
 
       <button
-        v-if="editingArticle"
         type="button"
         class="cancel-link"
-        @click="emit('cancel')"
+        @click="collapseForm"
       >
-        Anuluj edycję
+        {{ editingArticle ? 'Anuluj edycję' : 'Zwiń formularz' }}
       </button>
     </div>
 
@@ -228,10 +265,9 @@ const handleSubmit = () => {
 
     <div class="form-actions">
       <button
-        v-if="editingArticle"
         type="button"
         class="btn btn-secondary"
-        @click="emit('cancel')"
+        @click="collapseForm"
       >
         Anuluj
       </button>
@@ -243,6 +279,53 @@ const handleSubmit = () => {
 </template>
 
 <style scoped>
+/* Collapsed Bar */
+.composer-collapsed {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.composer-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.composer-prompt {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.composer-prompt:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.compact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Expanded Form */
 .article-form {
   padding: 20px;
   display: flex;
@@ -275,6 +358,10 @@ const handleSubmit = () => {
   color: var(--text-muted);
   font-size: 0.82rem;
   text-decoration: underline;
+}
+
+.cancel-link:hover {
+  color: var(--text-main);
 }
 
 .error-banner {
@@ -437,6 +524,9 @@ const handleSubmit = () => {
 @media (max-width: 680px) {
   .form-row {
     flex-direction: column;
+  }
+  .composer-avatar {
+    display: none;
   }
 }
 </style>

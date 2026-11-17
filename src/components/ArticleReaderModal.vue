@@ -45,7 +45,7 @@ const closeModal = () => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && store.activeArticle) {
+  if (e.key === 'Escape' && store.activeArticle && !store.citingArticle) {
     closeModal();
   }
 };
@@ -138,6 +138,15 @@ onUnmounted(() => {
                 :size="16"
               />
               <span>{{ article.isSaved ? 'Zapisano w czytelni' : 'Zapisz artykuł' }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="action-btn"
+              @click="store.citingArticle = article"
+            >
+              <AppIcon name="quote" :size="15" />
+              <span>Cytuj</span>
             </button>
           </div>
 
@@ -335,6 +344,11 @@ onUnmounted(() => {
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 0.86rem;
+}
+
+.action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
 }
 
 .action-btn.liked,

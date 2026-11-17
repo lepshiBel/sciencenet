@@ -4,12 +4,12 @@ Portal społecznościowy dla ludzi nauki zbudowany we **Vue 3**, **TypeScript**,
 
 ## Funkcjonalności
 
-- **Główna tablica publikacji:** sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane), obsługa kart z ryciną (URL) oraz bez obrazka, szacowany czas czytania.
-- **Formaty prac i taksonomia:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki oraz interaktywne tagi (`#słowa-kluczowe`).
+- **Główna tablica publikacji:** zwijany formularz tworzenia wpisów, sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane), obsługa kart z ryciną (URL) oraz bez obrazka, szacowany czas czytania.
+- **Formaty prac i taksonomia:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki, interaktywne tagi (`#słowa-kluczowe`) oraz filtrowanie po wybranym autorze.
+- **Generator cytowań (APA & BibTeX):** automatyczne tworzenie gotowych opisów bibliograficznych z kopiowaniem do schowka jednym kliknięciem.
 - **Tryb czytania (Reader Modal):** pełnoekranowy widok skupionej lektury z dyskusją naukową i blokadą przewijania tła.
-- **Profil badacza:** edytowalna wizytówka użytkownika z automatyczną synchronizacją autorstwa w opublikowanych artykułach oraz filtrem *Moje publikacje*.
-- **Motyw jasny i ciemny (Light / Dark):** przełącznik palety kolorystycznej z zapisem preferencji w `localStorage`.
-- **Trwałość danych (`localStorage`):** artykuły, polubienia, zakładki (`/saved`), komentarze oraz profil zapisują się lokalnie w przeglądarce.
+- **Analityka i archiwum JSON:** rozkład publikacji według dziedzin nauki w panelu bocznym, powiadomienia Toast (z funkcją cofnięcia usunięcia) oraz eksport/import bazy danych w formacie `.json`.
+- **Profil badacza i motywy (Light / Dark):** edytowalna wizytówka z synchronizacją autorstwa oraz przełącznik motywu jasnego i ciemnego z zapisem w `localStorage`.
 - **Responsywność (RWD):** 3-kolumnowy układ na desktopie oraz czytelny układ 1-kolumnowy na urządzeniach mobilnych.
 
 ## Uruchomienie projektu
