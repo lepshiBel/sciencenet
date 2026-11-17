@@ -55,6 +55,15 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => props.defaultAuthor,
+  (newAuthor) => {
+    if (!props.editingArticle && newAuthor) {
+      author.value = newAuthor;
+    }
+  }
+);
+
 const addTag = () => {
   const cleaned = tagInput.value
     .trim()

@@ -53,32 +53,77 @@ export const useArticleStore = defineStore('articles', () => {
 
   const currentUser = ref<UserProfile>(loadProfile());
 
-  const updateProfile = (updated: Partial<UserProfile>) => {
-    currentUser.value = { ...currentUser.value, ...updated };
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(currentUser.value));
-  };
-
   // --- Articles State ---
   const loadArticles = (): Article[] => {
     const rawData = localStorage.getItem(STORAGE_KEY);
+    const activeName = currentUser.value.name.trim().toLowerCase();
+    const defaultName = DEFAULT_PROFILE.name.trim().toLowerCase();
+
     if (rawData !== null) {
       try {
         const parsed = JSON.parse(rawData) as Article[];
-        // Ensure backward compatibility with older entries
-        return parsed.map((item) => ({
-          ...item,
-          publicationType: item.publicationType || 'Artykuł badawczy',
-          tags: Array.isArray(item.tags) ? item.tags : [],
-        }));
+        return parsed.map((item) => {
+          const itemAuthor = (item.author || '').trim().toLowerCase();
+          const detectedOwn =
+            item.isOwn === true ||
+            itemAuthor === activeName ||
+            itemAuthor === defaultName;
+
+          return {
+            ...item,
+            isOwn: detectedOwn,
+            author: detectedOwn ? currentUser.value.name : item.author,
+            publicationType: item.publicationType || 'Artykuł badawczy',
+            tags: Array.isArray(item.tags) ? item.tags : [],
+          };
+        });
       } catch (e) {
         console.error('Failed to parse articles from localStorage:', e);
         return [...INITIAL_ARTICLES];
       }
     }
-    return [...INITIAL_ARTICLES];
+
+    return INITIAL_ARTICLES.map((item) => {
+      const itemAuthor = item.author.trim().toLowerCase();
+      const detectedOwn = itemAuthor === activeName || itemAuthor === defaultName;
+      return {
+        ...item,
+        isOwn: detectedOwn,
+        author: detectedOwn ? currentUser.value.name : item.author,
+      };
+    });
   };
 
   const articles = ref<Article[]>(loadArticles());
+
+  const updateProfile = (updated: Partial<UserProfile>) => {
+    const oldName = currentUser.value.name.trim().toLowerCase();
+    currentUser.value = { ...currentUser.value, ...updated };
+    const newName = currentUser.value.name.trim();
+
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(currentUser.value));
+
+    if (newName) {
+      articles.value.forEach((article) => {
+        if (
+          article.isOwn ||
+          article.author.trim().toLowerCase() === oldName
+        ) {
+          article.isOwn = true;
+          article.author = newName;
+        }
+        article.comments.forEach((comment) => {
+          if (
+            comment.isOwn ||
+            comment.author.trim().toLowerCase() === oldName
+          ) {
+            comment.isOwn = true;
+            comment.author = newName;
+          }
+        });
+      });
+    }
+  };
 
   // --- Filter, Search & Sort States ---
   const searchQuery = ref<string>('');
@@ -116,7 +161,8 @@ export const useArticleStore = defineStore('articles', () => {
 
       const matchesAuthor =
         !onlyMine.value ||
-        article.author.toLowerCase() === currentUser.value.name.trim().toLowerCase();
+        Boolean(article.isOwn) ||
+        article.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase();
 
       const matchesSearch =
         !query ||
@@ -147,7 +193,6 @@ export const useArticleStore = defineStore('articles', () => {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
 
-  // Top tags across all publications for quick filtering
   const popularTags = computed<{ name: string; count: number }[]>(() => {
     const counts = new Map<string, number>();
     for (const article of articles.value) {
@@ -165,10 +210,15 @@ export const useArticleStore = defineStore('articles', () => {
 
   // --- Actions ---
   const addArticle = (payload: ArticlePayload): void => {
+    const cleanAuthor = payload.author.trim() || currentUser.value.name;
+    const isCurrentUser =
+      cleanAuthor.toLowerCase() === currentUser.value.name.trim().toLowerCase();
+
     const newArticle: Article = {
       id: `art-${Date.now()}`,
       title: payload.title.trim(),
-      author: payload.author.trim() || currentUser.value.name,
+      author: cleanAuthor,
+      isOwn: isCurrentUser,
       field: payload.field,
       publicationType: payload.publicationType,
       tags: payload.tags,
@@ -187,8 +237,11 @@ export const useArticleStore = defineStore('articles', () => {
     const target = articles.value.find((a) => a.id === id);
     if (!target) return;
 
+    const cleanAuthor = payload.author.trim() || target.author;
     target.title = payload.title.trim();
-    target.author = payload.author.trim() || target.author;
+    target.author = cleanAuthor;
+    target.isOwn =
+      cleanAuthor.toLowerCase() === currentUser.value.name.trim().toLowerCase();
     target.field = payload.field;
     target.publicationType = payload.publicationType;
     target.tags = payload.tags;
@@ -225,9 +278,11 @@ export const useArticleStore = defineStore('articles', () => {
     const target = articles.value.find((a) => a.id === articleId);
     if (!target) return;
 
+    const cleanAuthor = author?.trim() || currentUser.value.name;
     target.comments.push({
       id: `com-${Date.now()}`,
-      author: author?.trim() || currentUser.value.name,
+      author: cleanAuthor,
+      isOwn: cleanAuthor.toLowerCase() === currentUser.value.name.trim().toLowerCase(),
       text: trimmed,
       createdAt: new Date().toISOString(),
     });
@@ -246,7 +301,19 @@ export const useArticleStore = defineStore('articles', () => {
   };
 
   const resetDemoData = (): void => {
-    articles.value = [...INITIAL_ARTICLES];
+    const activeName = currentUser.value.name;
+    const defaultName = DEFAULT_PROFILE.name.trim().toLowerCase();
+
+    articles.value = INITIAL_ARTICLES.map((item) => {
+      const itemAuthor = item.author.trim().toLowerCase();
+      const detectedOwn =
+        itemAuthor === activeName.trim().toLowerCase() || itemAuthor === defaultName;
+      return {
+        ...item,
+        isOwn: detectedOwn,
+        author: detectedOwn ? activeName : item.author,
+      };
+    });
     resetFilters();
   };
 

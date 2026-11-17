@@ -1,17 +1,27 @@
-# ScienceNet — Portal społecznościowy dla ludzi nauki
+# ScienceNet — Academic Research Network
 
-Projekt zaliczeniowy zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vue Router**.
+Portal społecznościowy dla ludzi nauki zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vue Router**.
 
 ## Funkcjonalności
-- **Główna tablica artykułów:** sortowanie od najnowszych, obsługa kart z obrazkiem (URL) oraz bez obrazka.
-- **Trwałość danych (`localStorage`):** artykuły, polubienia, zakładki oraz komentarze zapisują się automatycznie w przeglądarce.
-- **Interakcje:** system polubień („Lubię to”) z dynamicznym rankingiem najpopularniejszych publikacji, komentarze pod artykułami, edycja oraz usuwanie wpisów.
-- **Wyszukiwanie i filtrowanie:** filtrowanie artykułów po tytule w czasie rzeczywistym oraz według dziedziny nauki.
-- **Zapisane artykuły:** dedykowana podstrona `/saved` z listą zakładek.
+
+- **Główna tablica publikacji:** sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane), obsługa kart z ryciną (URL) oraz bez obrazka, szacowany czas czytania.
+- **Formaty prac i taksonomia:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki oraz interaktywne tagi (`#słowa-kluczowe`).
+- **Tryb czytania (Reader Modal):** pełnoekranowy widok skupionej lektury z dyskusją naukową i blokadą przewijania tła.
+- **Profil badacza:** edytowalna wizytówka użytkownika z automatyczną synchronizacją autorstwa w opublikowanych artykułach oraz filtrem *Moje publikacje*.
+- **Motyw jasny i ciemny (Light / Dark):** przełącznik palety kolorystycznej z zapisem preferencji w `localStorage`.
+- **Trwałość danych (`localStorage`):** artykuły, polubienia, zakładki (`/saved`), komentarze oraz profil zapisują się lokalnie w przeglądarce.
 - **Responsywność (RWD):** 3-kolumnowy układ na desktopie oraz czytelny układ 1-kolumnowy na urządzeniach mobilnych.
 
 ## Uruchomienie projektu
-\`\`\`bash
-npm install
-npm run dev
-\`\`\`
+
+1. **Zainstaluj zależności:**
+   ```bash
+   npm install
+   ```
+
+2. **Uruchom serwer deweloperski:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Otwórz aplikację w przeglądarce** pod adresem wyświetlonym w terminalu (domyślnie `http://localhost:5173`).

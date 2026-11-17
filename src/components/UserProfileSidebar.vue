@@ -39,7 +39,9 @@ const totalLikes = computed(() =>
 
 const myArticlesCount = computed(() =>
   store.articles.filter(
-    (a) => a.author.toLowerCase() === store.currentUser.name.trim().toLowerCase()
+    (a) =>
+      a.isOwn ||
+      a.author.trim().toLowerCase() === store.currentUser.name.trim().toLowerCase()
   ).length
 );
 </script>
@@ -172,12 +174,15 @@ const myArticlesCount = computed(() =>
 }
 
 .avatar {
+  position: relative;
+  z-index: 2;
+  display: block;
   width: 72px;
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--bg-card);
-  margin-top: -36px;
+  margin: -36px auto 0;
   background: var(--bg-subtle);
 }
 

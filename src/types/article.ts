@@ -24,6 +24,7 @@ export type ThemeMode = 'light' | 'dark';
 export interface Comment {
   id: string;
   author: string;
+  isOwn?: boolean;
   text: string;
   createdAt: string; // ISO date string
 }
@@ -33,6 +34,7 @@ export interface Article {
   id: string;
   title: string;
   author: string;
+  isOwn?: boolean;
   field: ScienceField;
   publicationType: PublicationType;
   tags: string[];
