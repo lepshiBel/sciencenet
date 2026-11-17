@@ -3,6 +3,7 @@
 Projekt zaliczeniowy zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vue Router**.
 
 ## Funkcjonalności
+
 - **Główna tablica artykułów:** sortowanie od najnowszych, obsługa kart z obrazkiem (URL) oraz bez obrazka.
 - **Trwałość danych (`localStorage`):** artykuły, polubienia, zakładki oraz komentarze zapisują się automatycznie w przeglądarce.
 - **Interakcje:** system polubień („Lubię to”) z dynamicznym rankingiem najpopularniejszych publikacji, komentarze pod artykułami, edycja oraz usuwanie wpisów.
@@ -11,9 +12,15 @@ Projekt zaliczeniowy zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vu
 - **Responsywność (RWD):** 3-kolumnowy układ na desktopie oraz czytelny układ 1-kolumnowy na urządzeniach mobilnych.
 
 ## Uruchomienie projektu
-\`\`\`bash
 
-npm install
-npm run dev
+1. **Zainstaluj zależności:**
+   ```bash
+   npm install
+   ```
 
-\`\`\`
+2. **Uruchom serwer deweloperski:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Otwórz aplikację w przeglądarce** pod adresem wyświetlonym w terminalu (domyślnie `http://localhost:5173`).
