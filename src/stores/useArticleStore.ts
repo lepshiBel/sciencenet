@@ -6,13 +6,13 @@ import { INITIAL_ARTICLES } from '../data/mockArticles';
 const STORAGE_KEY = 'sciencenet_articles_v1';
 
 export const useArticleStore = defineStore('articles', () => {
-  // Current researcher profile for the left sidebar
+// Current researcher profile for the left sidebar
   const currentUser = ref<UserProfile>({
-    name: 'dr Elisey Avvakumov',
-    title: 'Badacz AI & Symulacji',
+    name: 'Elisey Avvakumov',
+    title: 'Student — Projektowanie gier',
     institution: 'Uniwersytet WSB Merito w Gdańsku',
-    bio: 'Zajmuję się sztuczną inteligencją, modelowaniem systemów złożonych oraz wizualizacją danych naukowych.',
-    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
+    bio: 'Zajmuję się projektowaniem i programowaniem gier komputerowych, mechaniką rozgrywki oraz interaktywnymi symulacjami.',
+    avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80',
   });
 
   // Load initial state from localStorage or fallback to mock data on very first visit
