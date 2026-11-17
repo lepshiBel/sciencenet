@@ -1,19 +1,111 @@
 :root {
-  --bg-page: #f1f5f9;
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Light Academic Palette */
+  --bg-page: #f4f5f7;
   --bg-card: #ffffff;
-  --bg-subtle: #f8fafc;
-  --text-main: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --primary: #1d4ed8;
-  --primary-hover: #1e40af;
+  --bg-subtle: #f8f9fb;
+  --bg-hover: #eef1f5;
+  --text-main: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+
+  --primary: #1e3a8a;
+  --primary-hover: #172554;
   --primary-soft: #eff6ff;
-  --danger: #dc2626;
+  --primary-border: #bfdbfe;
+
+  --danger: #b91c1c;
   --danger-soft: #fef2f2;
-  --border: #e2e8f0;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --danger-border: #fecaca;
+
+  --border: #e2e5ec;
+  --border-strong: #cbd2df;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 3px rgba(17, 24, 39, 0.03);
+  --shadow-md: 0 8px 24px rgba(17, 24, 39, 0.08);
+
+  /* Discipline Badges - Light */
+  --field-astro-bg: #eef2ff;
+  --field-astro-text: #3730a3;
+  --field-astro-border: #c7d2fe;
+
+  --field-bio-bg: #ecfdf5;
+  --field-bio-text: #065f46;
+  --field-bio-border: #a7f3d0;
+
+  --field-phys-bg: #f0f9ff;
+  --field-phys-text: #075985;
+  --field-phys-border: #bae6fd;
+
+  --field-it-bg: #f5f3ff;
+  --field-it-text: #5b21b6;
+  --field-it-border: #ddd6fe;
+
+  --field-chem-bg: #fffbeb;
+  --field-chem-text: #92400e;
+  --field-chem-border: #fde68a;
+
+  --field-med-bg: #fff1f2;
+  --field-med-text: #9f1239;
+  --field-med-border: #fecdd3;
+}
+
+[data-theme='dark'] {
+  /* Dark Academic Palette (Slate / Graphite) */
+  --bg-page: #0f1117;
+  --bg-card: #161922;
+  --bg-subtle: #1d212d;
+  --bg-hover: #252a38;
+  --text-main: #f3f4f6;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+
+  --primary: #60a5fa;
+  --primary-hover: #93c5fd;
+  --primary-soft: rgba(59, 130, 246, 0.14);
+  --primary-border: rgba(96, 165, 250, 0.3);
+
+  --danger: #f87171;
+  --danger-soft: rgba(239, 68, 68, 0.14);
+  --danger-border: rgba(248, 113, 113, 0.3);
+
+  --border: #262b38;
+  --border-strong: #363d4f;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+
+  /* Discipline Badges - Dark (Muted & Readable) */
+  --field-astro-bg: rgba(99, 102, 241, 0.15);
+  --field-astro-text: #a5b4fc;
+  --field-astro-border: rgba(129, 140, 248, 0.3);
+
+  --field-bio-bg: rgba(16, 185, 129, 0.14);
+  --field-bio-text: #6ee7b7;
+  --field-bio-border: rgba(52, 211, 153, 0.28);
+
+  --field-phys-bg: rgba(14, 165, 233, 0.15);
+  --field-phys-text: #7dd3fc;
+  --field-phys-border: rgba(56, 189, 248, 0.3);
+
+  --field-it-bg: rgba(139, 92, 246, 0.16);
+  --field-it-text: #c4b5fd;
+  --field-it-border: rgba(167, 139, 250, 0.3);
+
+  --field-chem-bg: rgba(245, 158, 11, 0.14);
+  --field-chem-text: #fcd34d;
+  --field-chem-border: rgba(251, 191, 36, 0.28);
+
+  --field-med-bg: rgba(244, 63, 94, 0.15);
+  --field-med-text: #fda4af;
+  --field-med-border: rgba(251, 113, 133, 0.3);
 }
 
 *,
@@ -27,12 +119,13 @@
 html,
 body {
   max-width: 100%;
-  overflow-x: hidden; /* Prevents horizontal scroll on mobile devices */
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
   background-color: var(--bg-page);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a {
@@ -57,11 +150,12 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .container {
   width: 100%;
-  max-width: 1220px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 0 16px;
 }
