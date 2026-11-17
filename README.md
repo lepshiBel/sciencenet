@@ -12,6 +12,8 @@ Projekt zaliczeniowy zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vu
 
 ## Uruchomienie projektu
 \`\`\`bash
+
 npm install
 npm run dev
+
 \`\`\`
