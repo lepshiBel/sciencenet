@@ -1,5 +1,17 @@
-# Vue 3 + TypeScript + Vite
+# ScienceNet — Portal społecznościowy dla ludzi nauki
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Projekt zaliczeniowy zbudowany we **Vue 3**, **TypeScript**, **Pinia** oraz **Vue Router**.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Funkcjonalności
+- **Główna tablica artykułów:** sortowanie od najnowszych, obsługa kart z obrazkiem (URL) oraz bez obrazka.
+- **Trwałość danych (`localStorage`):** artykuły, polubienia, zakładki oraz komentarze zapisują się automatycznie w przeglądarce.
+- **Interakcje:** system polubień („Lubię to”) z dynamicznym rankingiem najpopularniejszych publikacji, komentarze pod artykułami, edycja oraz usuwanie wpisów.
+- **Wyszukiwanie i filtrowanie:** filtrowanie artykułów po tytule w czasie rzeczywistym oraz według dziedziny nauki.
+- **Zapisane artykuły:** dedykowana podstrona `/saved` z listą zakładek.
+- **Responsywność (RWD):** 3-kolumnowy układ na desktopie oraz czytelny układ 1-kolumnowy na urządzeniach mobilnych.
+
+## Uruchomienie projektu
+\`\`\`bash
+npm install
+npm run dev
+\`\`\`

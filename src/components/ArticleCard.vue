@@ -190,14 +190,16 @@ const submitComment = () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .meta-left {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px 8px;
   font-size: 0.84rem;
   color: var(--text-secondary);
 }
@@ -225,6 +227,7 @@ const submitComment = () => {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .icon-btn {
