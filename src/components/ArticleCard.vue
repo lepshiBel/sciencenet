@@ -2,7 +2,9 @@
 import { ref, computed, watch } from 'vue';
 import type { Article } from '../types/article';
 import { FIELD_STYLES } from '../data/mockArticles';
+import { useArticleStore } from '../stores/useArticleStore';
 import AppIcon from './AppIcon.vue';
+import RichTextRenderer from './RichTextRenderer.vue';
 
 const props = defineProps<{
   article: Article;
@@ -22,9 +24,13 @@ const emit = defineEmits<{
   (e: 'add-comment', payload: { articleId: string; text: string }): void;
 }>();
 
+const store = useArticleStore();
 const showComments = ref(false);
 const newCommentText = ref('');
 const imageLoadError = ref(false);
+
+const editingCommentId = ref<string | null>(null);
+const editingCommentText = ref('');
 
 watch(
   () => props.article.imageUrl,
@@ -41,6 +47,15 @@ const fieldBadgeStyle = computed(() => {
     borderColor: token.border,
   };
 });
+
+const splitAuthorName = (fullName: string) => {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) {
+    return { prefix: '', lastWord: fullName.trim() };
+  }
+  const lastWord = parts.pop() || '';
+  return { prefix: parts.join(' ') + ' ', lastWord };
+};
 
 const getTagToneClass = (tag: string): string => {
   let hash = 0;
@@ -77,6 +92,22 @@ const submitComment = () => {
   newCommentText.value = '';
   showComments.value = true;
 };
+
+const startEditComment = (commentId: string, currentText: string) => {
+  editingCommentId.value = commentId;
+  editingCommentText.value = currentText;
+};
+
+const saveEditComment = (commentId: string) => {
+  if (!editingCommentText.value.trim()) return;
+  store.updateComment(props.article.id, commentId, editingCommentText.value);
+  editingCommentId.value = null;
+  editingCommentText.value = '';
+};
+
+const removeComment = (commentId: string) => {
+  store.deleteComment(props.article.id, commentId);
+};
 </script>
 
 <template>
@@ -94,7 +125,17 @@ const submitComment = () => {
           title="Pokaż publikacje tego autora"
           @click="emit('select-author', article.author)"
         >
-          {{ article.author }}
+          <span>{{ splitAuthorName(article.author).prefix }}</span>
+          <span class="author-tail">
+            {{ splitAuthorName(article.author).lastWord }}
+            <span
+              v-if="article.isVerifiedAuthor"
+              class="verified-mini"
+              title="Zweryfikowany autor"
+            >
+              <AppIcon name="check" :size="9" />
+            </span>
+          </span>
         </button>
         <span class="dot">•</span>
         <time :datetime="article.createdAt" class="publish-date">
@@ -146,7 +187,9 @@ const submitComment = () => {
       {{ article.title }}
     </h2>
 
-    <p class="article-content">{{ article.content }}</p>
+    <div class="article-content">
+      <RichTextRenderer :content="article.content" />
+    </div>
 
     <div
       v-if="article.imageUrl && !imageLoadError"
@@ -228,9 +271,52 @@ const submitComment = () => {
         >
           <div class="comment-header">
             <span class="comment-author">{{ comment.author }}</span>
-            <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+            <div class="comment-meta-right">
+              <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+              <template v-if="comment.isOwn">
+                <button
+                  type="button"
+                  class="mini-icon-btn"
+                  title="Edytuj komentarz"
+                  @click="startEditComment(comment.id, comment.text)"
+                >
+                  <AppIcon name="edit" :size="12" />
+                </button>
+                <button
+                  type="button"
+                  class="mini-icon-btn danger"
+                  title="Usuń komentarz"
+                  @click="removeComment(comment.id)"
+                >
+                  <AppIcon name="trash" :size="12" />
+                </button>
+              </template>
+            </div>
           </div>
-          <p class="comment-text">{{ comment.text }}</p>
+
+          <div v-if="editingCommentId === comment.id" class="comment-edit-row">
+            <input
+              v-model="editingCommentText"
+              type="text"
+              @keyup.enter="saveEditComment(comment.id)"
+            />
+            <button
+              type="button"
+              class="btn-xs-save"
+              @click="saveEditComment(comment.id)"
+            >
+              Zapisz
+            </button>
+            <button
+              type="button"
+              class="btn-xs-cancel"
+              @click="editingCommentId = null"
+            >
+              Anuluj
+            </button>
+          </div>
+
+          <p v-else class="comment-text">{{ comment.text }}</p>
         </li>
       </ul>
 
@@ -304,11 +390,13 @@ const submitComment = () => {
 }
 
 .author-link {
+  display: inline;
   background: none;
   border: none;
   padding: 0;
   font-weight: 600;
   font-size: 0.8rem;
+  line-height: 1.35;
   color: var(--text-main);
   text-align: left;
   transition: color 0.15s;
@@ -318,6 +406,29 @@ const submitComment = () => {
 .author-link.active {
   color: var(--primary);
   text-decoration: underline;
+}
+
+.author-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.verified-mini {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme='dark'] .verified-mini {
+  color: #0f1117;
 }
 
 .dot,
@@ -395,10 +506,10 @@ const submitComment = () => {
   font-size: 0.93rem;
   color: var(--text-secondary);
   line-height: 1.65;
-  white-space: pre-line;
 }
 
 .article-image-wrapper {
+  flex-shrink: 0;
   margin-top: 2px;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -409,6 +520,7 @@ const submitComment = () => {
 
 .article-image-wrapper img {
   width: 100%;
+  height: auto;
   max-height: 360px;
   object-fit: cover;
   display: block;
@@ -573,10 +685,72 @@ const submitComment = () => {
   color: var(--text-main);
 }
 
+.comment-meta-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .comment-date {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+.mini-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: inline-flex;
+  padding: 2px;
+}
+
+.mini-icon-btn:hover {
+  color: var(--text-main);
+}
+
+.mini-icon-btn.danger:hover {
+  color: var(--danger);
+}
+
+.comment-edit-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.comment-edit-row input {
+  flex: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.84rem;
+}
+
+.btn-xs-save,
+.btn-xs-cancel {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.btn-xs-save {
+  background: var(--primary);
+  border: none;
+  color: #ffffff;
+}
+
+[data-theme='dark'] .btn-xs-save {
+  color: #0f1117;
+}
+
+.btn-xs-cancel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
 }
 
 .comment-text {

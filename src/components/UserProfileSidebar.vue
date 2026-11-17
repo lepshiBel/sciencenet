@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useArticleStore } from '../stores/useArticleStore';
 import AppIcon from './AppIcon.vue';
 
@@ -11,6 +11,7 @@ const draftTitle = ref('');
 const draftInstitution = ref('');
 const draftBio = ref('');
 const draftAvatar = ref('');
+const draftVerified = ref(true);
 
 const startEdit = () => {
   draftName.value = store.currentUser.name;
@@ -18,6 +19,7 @@ const startEdit = () => {
   draftInstitution.value = store.currentUser.institution;
   draftBio.value = store.currentUser.bio;
   draftAvatar.value = store.currentUser.avatarUrl;
+  draftVerified.value = store.currentUser.isVerified;
   isEditingProfile.value = true;
 };
 
@@ -29,21 +31,10 @@ const saveProfile = () => {
     institution: draftInstitution.value.trim(),
     bio: draftBio.value.trim(),
     avatarUrl: draftAvatar.value.trim() || store.currentUser.avatarUrl,
+    isVerified: draftVerified.value,
   });
   isEditingProfile.value = false;
 };
-
-const totalLikes = computed(() =>
-  store.articles.reduce((sum, article) => sum + article.likes, 0)
-);
-
-const myArticlesCount = computed(() =>
-  store.articles.filter(
-    (a) =>
-      a.isOwn ||
-      a.author.trim().toLowerCase() === store.currentUser.name.trim().toLowerCase()
-  ).length
-);
 </script>
 
 <template>
@@ -66,7 +57,17 @@ const myArticlesCount = computed(() =>
         class="avatar"
       />
 
-      <h2 class="user-name">{{ store.currentUser.name }}</h2>
+      <div class="name-row">
+        <h2 class="user-name">{{ store.currentUser.name }}</h2>
+        <span
+          v-if="store.currentUser.isVerified"
+          class="verified-pill"
+          title="Zweryfikowany profil akademicki"
+        >
+          <AppIcon name="check" :size="11" />
+        </span>
+      </div>
+
       <p class="user-title">{{ store.currentUser.title }}</p>
       <p class="user-institution">
         <AppIcon name="building" :size="13" />
@@ -75,24 +76,29 @@ const myArticlesCount = computed(() =>
 
       <p class="user-bio">{{ store.currentUser.bio }}</p>
 
-      <div class="stats-grid">
-        <button
-          type="button"
-          class="stat-item clickable"
-          :class="{ active: store.onlyMine }"
-          title="Filtruj moje publikacje"
-          @click="store.onlyMine = !store.onlyMine"
-        >
-          <span class="stat-value">{{ myArticlesCount }}</span>
-          <span class="stat-label">Moje</span>
-        </button>
-        <div class="stat-item">
-          <span class="stat-value">{{ totalLikes }}</span>
-          <span class="stat-label">Polubienia</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{{ store.savedArticles.length }}</span>
-          <span class="stat-label">Zapisane</span>
+      <div class="metrics-section">
+        <div class="metrics-heading">Wskaźniki naukowe</div>
+        <div class="stats-grid">
+          <button
+            type="button"
+            class="stat-item clickable"
+            :class="{ active: store.onlyMine }"
+            title="Filtruj moje publikacje"
+            @click="store.onlyMine = !store.onlyMine"
+          >
+            <span class="stat-value">{{ store.researcherMetrics.publications }}</span>
+            <span class="stat-label">Publikacje</span>
+          </button>
+
+          <div class="stat-item" title="Suma cytowań i reakcji naukowych">
+            <span class="stat-value">{{ store.researcherMetrics.citations }}</span>
+            <span class="stat-label">Cytowania</span>
+          </div>
+
+          <div class="stat-item" title="Indeks Hirscha (h-index)">
+            <span class="stat-value">{{ store.researcherMetrics.hIndex }}</span>
+            <span class="stat-label">h-index</span>
+          </div>
         </div>
       </div>
     </div>
@@ -123,6 +129,11 @@ const myArticlesCount = computed(() =>
       <label>
         <span>Nota biograficzna</span>
         <textarea v-model="draftBio" rows="3"></textarea>
+      </label>
+
+      <label class="checkbox-row">
+        <input v-model="draftVerified" type="checkbox" />
+        <span>Zweryfikowany afiliacją akademicką</span>
       </label>
 
       <div class="edit-actions">
@@ -186,11 +197,34 @@ const myArticlesCount = computed(() =>
   background: var(--bg-subtle);
 }
 
-.user-name {
+.name-row {
   margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.user-name {
   font-size: 1.06rem;
   font-weight: 700;
   color: var(--text-main);
+}
+
+.verified-pill {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .verified-pill {
+  color: #0f1117;
 }
 
 .user-title {
@@ -220,13 +254,25 @@ const myArticlesCount = computed(() =>
   line-height: 1.5;
 }
 
+.metrics-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.metrics-heading {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
 }
 
 .stat-item {
@@ -235,12 +281,13 @@ const myArticlesCount = computed(() =>
   align-items: center;
   padding: 6px 4px;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
 }
 
 .stat-item.clickable:hover {
   background: var(--bg-hover);
+  border-color: var(--border-strong);
 }
 
 .stat-item.clickable.active {
@@ -251,12 +298,12 @@ const myArticlesCount = computed(() =>
 .stat-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   color: var(--text-main);
 }
 
 .stat-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
@@ -283,7 +330,15 @@ const myArticlesCount = computed(() =>
   color: var(--text-secondary);
 }
 
-.profile-edit-form input,
+.profile-edit-form label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.profile-edit-form input[type='text'],
+.profile-edit-form input[type='url'],
 .profile-edit-form textarea {
   padding: 7px 10px;
   border: 1px solid var(--border);
