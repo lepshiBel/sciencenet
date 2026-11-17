@@ -7,6 +7,19 @@ export type ScienceField =
   | 'Chemia'
   | 'Medycyna';
 
+// Academic publication formats
+export type PublicationType =
+  | 'Artykuł badawczy'
+  | 'Przegląd'
+  | 'Preprint'
+  | 'Notatka badawcza';
+
+// Feed sorting options
+export type SortOption = 'newest' | 'popular' | 'discussed';
+
+// UI color theme
+export type ThemeMode = 'light' | 'dark';
+
 // Structure of a single comment under an article
 export interface Comment {
   id: string;
@@ -21,12 +34,14 @@ export interface Article {
   title: string;
   author: string;
   field: ScienceField;
+  publicationType: PublicationType;
+  tags: string[];
   content: string;
   imageUrl?: string; // Optional external image URL
   createdAt: string; // ISO date string
   likes: number;
-  isLiked: boolean; // Tracks if current user liked the post
-  isSaved: boolean; // Tracks if article is bookmarked
+  isLiked: boolean;
+  isSaved: boolean;
   comments: Comment[];
 }
 
@@ -35,11 +50,13 @@ export interface ArticlePayload {
   title: string;
   author: string;
   field: ScienceField;
+  publicationType: PublicationType;
+  tags: string[];
   content: string;
   imageUrl?: string;
 }
 
-// User profile displayed in the left sidebar card
+// Researcher profile displayed in the left sidebar card
 export interface UserProfile {
   name: string;
   title: string;
