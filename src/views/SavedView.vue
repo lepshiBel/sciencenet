@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useArticleStore } from '../stores/useArticleStore';
 import type { Article, ArticlePayload } from '../types/article';
 import ArticleCard from '../components/ArticleCard.vue';
 import ArticleForm from '../components/ArticleForm.vue';
+import AppIcon from '../components/AppIcon.vue';
 
 const store = useArticleStore();
+const router = useRouter();
 const editingArticle = ref<Article | null>(null);
 
 const handleUpdate = (payload: ArticlePayload) => {
@@ -13,15 +16,23 @@ const handleUpdate = (payload: ArticlePayload) => {
   store.updateArticle(editingArticle.value.id, payload);
   editingArticle.value = null;
 };
+
+const handleTagSelect = (tag: string) => {
+  store.selectTag(tag);
+  router.push('/');
+};
 </script>
 
 <template>
   <div class="saved-view">
     <div class="card saved-header">
-      <div>
-        <h2>🔖 Zapisane artykuły</h2>
+      <div class="header-info">
+        <div class="title-row">
+          <AppIcon name="bookmark-filled" :size="18" />
+          <h2>Czytelnia — Zapisane publikacje</h2>
+        </div>
         <p class="subtitle">
-          Twoja prywatna czytelnia publikacji naukowych ({{ store.savedArticles.length }})
+          Zarchiwizowane artykuły do późniejszej lektury ({{ store.savedArticles.length }})
         </p>
       </div>
       <RouterLink to="/" class="back-link">← Wróć na tablicę</RouterLink>
@@ -43,14 +54,20 @@ const handleUpdate = (payload: ArticlePayload) => {
         @toggle-save="store.toggleSave"
         @edit="(art) => (editingArticle = art)"
         @delete="store.deleteArticle"
+        @open-reader="(art) => (store.activeArticle = art)"
+        @select-tag="handleTagSelect"
         @add-comment="({ articleId, text }) => store.addComment(articleId, text)"
       />
     </div>
 
     <div v-else class="card empty-saved">
-      <p class="empty-icon">📑</p>
-      <h3>Nie masz jeszcze zapisanych artykułów</h3>
-      <p>Kliknij przycisk „Zapisz” przy interesującej publikacji na głównej tablicy, aby wrócić do niej później.</p>
+      <div class="empty-icon">
+        <AppIcon name="bookmark" :size="28" />
+      </div>
+      <h3>Brak zapisanych publikacji</h3>
+      <p>
+        Użyj przycisku „Zapisz” na dowolnej karcie artykułu, aby dodać go do swojej czytelni.
+      </p>
       <RouterLink to="/" class="browse-btn">Przeglądaj tablicę</RouterLink>
     </div>
   </div>
@@ -72,20 +89,27 @@ const handleUpdate = (payload: ArticlePayload) => {
   flex-wrap: wrap;
 }
 
-.saved-header h2 {
-  font-size: 1.15rem;
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+}
+
+.title-row h2 {
+  font-size: 1.12rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .subtitle {
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .back-link {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--primary);
 }
@@ -110,7 +134,7 @@ const handleUpdate = (payload: ArticlePayload) => {
 }
 
 .empty-icon {
-  font-size: 2rem;
+  color: var(--text-muted);
 }
 
 .empty-saved h3 {
@@ -119,18 +143,22 @@ const handleUpdate = (payload: ArticlePayload) => {
 }
 
 .empty-saved p {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--text-muted);
   max-width: 420px;
 }
 
 .browse-btn {
   margin-top: 8px;
-  padding: 9px 18px;
+  padding: 8px 18px;
   border-radius: var(--radius-md);
   background: var(--primary);
   color: #ffffff;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+}
+
+[data-theme='dark'] .browse-btn {
+  color: #0f1117;
 }
 </style>

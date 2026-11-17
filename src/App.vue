@@ -2,6 +2,7 @@
 import AppHeader from './components/AppHeader.vue';
 import UserProfileSidebar from './components/UserProfileSidebar.vue';
 import PopularArticlesSidebar from './components/PopularArticlesSidebar.vue';
+import ArticleReaderModal from './components/ArticleReaderModal.vue';
 </script>
 
 <template>
@@ -21,6 +22,8 @@ import PopularArticlesSidebar from './components/PopularArticlesSidebar.vue';
         <PopularArticlesSidebar />
       </div>
     </main>
+
+    <ArticleReaderModal />
   </div>
 </template>
 
@@ -41,7 +44,7 @@ import PopularArticlesSidebar from './components/PopularArticlesSidebar.vue';
 }
 
 .center-col {
-  min-width: 0; /* Prevents flex/grid blowout from long words or URLs */
+  min-width: 0;
 }
 
 @media (max-width: 1024px) {

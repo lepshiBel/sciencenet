@@ -26,11 +26,6 @@ const startEditing = (article: Article) => {
 const cancelEditing = () => {
   editingArticle.value = null;
 };
-
-const clearFilters = () => {
-  store.searchQuery = '';
-  store.selectedField = 'ALL';
-};
 </script>
 
 <template>
@@ -44,7 +39,13 @@ const clearFilters = () => {
 
     <FieldFilterBar
       :selected="store.selectedField"
+      :selected-tag="store.selectedTag"
+      :only-mine="store.onlyMine"
+      :sort-by="store.sortBy"
       @select="(field) => (store.selectedField = field)"
+      @clear-tag="store.selectedTag = null"
+      @toggle-mine="store.onlyMine = !store.onlyMine"
+      @update:sort-by="(val) => (store.sortBy = val)"
     />
 
     <div v-if="store.filteredArticles.length > 0" class="articles-list">
@@ -52,24 +53,26 @@ const clearFilters = () => {
         v-for="article in store.filteredArticles"
         :key="article.id"
         :article="article"
+        :active-tag="store.selectedTag"
         @toggle-like="store.toggleLike"
         @toggle-save="store.toggleSave"
         @edit="startEditing"
         @delete="store.deleteArticle"
+        @open-reader="(art) => (store.activeArticle = art)"
+        @select-tag="store.selectTag"
         @add-comment="({ articleId, text }) => store.addComment(articleId, text)"
       />
     </div>
 
     <div v-else class="card empty-state">
-      <h3>Brak artykułów spełniających kryteria</h3>
-      <p>Spróbuj zmienić frazę wyszukiwania lub wybrać inną dziedzinę nauki.</p>
+      <h3>Brak publikacji spełniających kryteria</h3>
+      <p>Zmień frazę wyszukiwania, wybrany tag lub dziedzinę nauki.</p>
       <button
-        v-if="store.searchQuery || store.selectedField !== 'ALL'"
         type="button"
         class="reset-filters-btn"
-        @click="clearFilters"
+        @click="store.resetFilters"
       >
-        Wyczyść filtry
+        Wyczyść wszystkie filtry
       </button>
     </div>
   </div>
@@ -103,7 +106,7 @@ const clearFilters = () => {
 }
 
 .empty-state p {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--text-muted);
 }
 
@@ -115,6 +118,10 @@ const clearFilters = () => {
   background: var(--primary);
   color: #ffffff;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
+}
+
+[data-theme='dark'] .reset-filters-btn {
+  color: #0f1117;
 }
 </style>
