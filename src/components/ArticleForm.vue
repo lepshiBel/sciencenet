@@ -254,7 +254,12 @@ const handleSubmit = () => {
     </div>
 
     <div class="form-group">
-      <label for="art-content">Abstrakt / Treść publikacji *</label>
+      <div class="label-with-hint">
+        <label for="art-content">Abstrakt / Treść publikacji *</label>
+        <span class="syntax-hint">
+          Formatowanie: <code>`wzór/kod`</code>, <code>```blok kodu```</code>, <code>&gt; teza</code>
+        </span>
+      </div>
       <textarea
         id="art-content"
         v-model="content"
@@ -393,6 +398,27 @@ const handleSubmit = () => {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.label-with-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.syntax-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.syntax-hint code {
+  font-family: var(--font-mono);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .form-group label {

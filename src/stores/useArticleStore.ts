@@ -28,6 +28,7 @@ const DEFAULT_PROFILE: UserProfile = {
   bio: 'Zajmuję się projektowaniem i programowaniem gier komputerowych, mechaniką rozgrywki oraz interaktywnymi symulacjami.',
   avatarUrl:
     'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80',
+  isVerified: true,
 };
 
 export const useArticleStore = defineStore('articles', () => {
@@ -79,7 +80,12 @@ export const useArticleStore = defineStore('articles', () => {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return { ...DEFAULT_PROFILE };
     try {
-      return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_PROFILE,
+        ...parsed,
+        isVerified: typeof parsed.isVerified === 'boolean' ? parsed.isVerified : true,
+      };
     } catch {
       return { ...DEFAULT_PROFILE };
     }
@@ -106,6 +112,10 @@ export const useArticleStore = defineStore('articles', () => {
           return {
             ...item,
             isOwn: detectedOwn,
+            isVerifiedAuthor: detectedOwn
+              ? currentUser.value.isVerified
+              : item.isVerifiedAuthor ??
+                (itemAuthor.startsWith('dr') || itemAuthor.startsWith('prof')),
             author: detectedOwn ? currentUser.value.name : item.author,
             publicationType: item.publicationType || 'Artykuł badawczy',
             tags: Array.isArray(item.tags) ? item.tags : [],
@@ -123,6 +133,9 @@ export const useArticleStore = defineStore('articles', () => {
       return {
         ...item,
         isOwn: detectedOwn,
+        isVerifiedAuthor: detectedOwn
+          ? currentUser.value.isVerified
+          : itemAuthor.startsWith('dr') || itemAuthor.startsWith('prof'),
         author: detectedOwn ? currentUser.value.name : item.author,
       };
     });
@@ -145,6 +158,7 @@ export const useArticleStore = defineStore('articles', () => {
         ) {
           article.isOwn = true;
           article.author = newName;
+          article.isVerifiedAuthor = currentUser.value.isVerified;
         }
         article.comments.forEach((comment) => {
           if (
@@ -230,6 +244,36 @@ export const useArticleStore = defineStore('articles', () => {
     });
   });
 
+  // Scientometric profile indicators (publications, citations/impact, Hirsch h-index)
+  const researcherMetrics = computed(() => {
+    const ownList = articles.value.filter(
+      (a) =>
+        a.isOwn ||
+        a.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase()
+    );
+
+    const scores = ownList
+      .map((a) => a.likes + a.comments.length * 2)
+      .sort((a, b) => b - a);
+
+    const totalImpact = scores.reduce((sum, val) => sum + val, 0);
+
+    let hIndex = 0;
+    for (let i = 0; i < scores.length; i++) {
+      if (scores[i] >= i + 1) {
+        hIndex = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      publications: ownList.length,
+      citations: totalImpact,
+      hIndex,
+    };
+  });
+
   const topLikedArticles = computed<Article[]>(() => {
     return [...articles.value].sort((a, b) => b.likes - a.likes).slice(0, 3);
   });
@@ -255,7 +299,6 @@ export const useArticleStore = defineStore('articles', () => {
       .slice(0, 10);
   });
 
-  // Distribution of publications across scientific fields
   const fieldStats = computed(() => {
     const total = articles.value.length || 1;
     return SCIENCE_FIELDS.map((field) => {
@@ -276,6 +319,7 @@ export const useArticleStore = defineStore('articles', () => {
       title: payload.title.trim(),
       author: cleanAuthor,
       isOwn: isCurrentUser,
+      isVerifiedAuthor: isCurrentUser ? currentUser.value.isVerified : false,
       field: payload.field,
       publicationType: payload.publicationType,
       tags: payload.tags,
@@ -296,10 +340,15 @@ export const useArticleStore = defineStore('articles', () => {
     if (!target) return;
 
     const cleanAuthor = payload.author.trim() || target.author;
+    const isCurrentUser =
+      cleanAuthor.toLowerCase() === currentUser.value.name.trim().toLowerCase();
+
     target.title = payload.title.trim();
     target.author = cleanAuthor;
-    target.isOwn =
-      cleanAuthor.toLowerCase() === currentUser.value.name.trim().toLowerCase();
+    target.isOwn = isCurrentUser;
+    if (isCurrentUser) {
+      target.isVerifiedAuthor = currentUser.value.isVerified;
+    }
     target.field = payload.field;
     target.publicationType = payload.publicationType;
     target.tags = payload.tags;
@@ -366,6 +415,26 @@ export const useArticleStore = defineStore('articles', () => {
     notify('Dodano komentarz', { duration: 2200 });
   };
 
+  const updateComment = (articleId: string, commentId: string, newText: string): void => {
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+
+    const target = articles.value.find((a) => a.id === articleId);
+    const comment = target?.comments.find((c) => c.id === commentId);
+    if (!comment) return;
+
+    comment.text = trimmed;
+    notify('Zaktualizowano komentarz', { duration: 2200 });
+  };
+
+  const deleteComment = (articleId: string, commentId: string): void => {
+    const target = articles.value.find((a) => a.id === articleId);
+    if (!target) return;
+
+    target.comments = target.comments.filter((c) => c.id !== commentId);
+    notify('Usunięto komentarz', { duration: 2200 });
+  };
+
   const selectTag = (tag: string | null): void => {
     selectedTag.value = selectedTag.value === tag ? null : tag;
   };
@@ -402,6 +471,9 @@ export const useArticleStore = defineStore('articles', () => {
       return {
         ...item,
         isOwn: detectedOwn,
+        isVerifiedAuthor: detectedOwn
+          ? currentUser.value.isVerified
+          : itemAuthor.startsWith('dr') || itemAuthor.startsWith('prof'),
         author: detectedOwn ? activeName : item.author,
       };
     });
@@ -444,6 +516,7 @@ export const useArticleStore = defineStore('articles', () => {
           title: item.title,
           author: item.author || 'Autor zaimportowany',
           isOwn: Boolean(item.isOwn),
+          isVerifiedAuthor: Boolean(item.isVerifiedAuthor),
           field: SCIENCE_FIELDS.includes(item.field) ? item.field : 'Informatyka',
           publicationType: item.publicationType || 'Artykuł badawczy',
           tags: Array.isArray(item.tags) ? item.tags : [],
@@ -484,6 +557,7 @@ export const useArticleStore = defineStore('articles', () => {
     activeArticle,
     citingArticle,
     filteredArticles,
+    researcherMetrics,
     topLikedArticles,
     savedArticles,
     popularTags,
@@ -494,6 +568,8 @@ export const useArticleStore = defineStore('articles', () => {
     toggleLike,
     toggleSave,
     addComment,
+    updateComment,
+    deleteComment,
     selectTag,
     selectAuthor,
     resetFilters,

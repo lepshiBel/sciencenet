@@ -35,6 +35,7 @@ export interface Article {
   title: string;
   author: string;
   isOwn?: boolean;
+  isVerifiedAuthor?: boolean;
   field: ScienceField;
   publicationType: PublicationType;
   tags: string[];
@@ -65,4 +66,5 @@ export interface UserProfile {
   institution: string;
   bio: string;
   avatarUrl: string;
+  isVerified: boolean;
 }

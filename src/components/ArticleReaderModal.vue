@@ -2,20 +2,32 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useArticleStore } from '../stores/useArticleStore';
 import { FIELD_STYLES } from '../data/mockArticles';
+import type { Article } from '../types/article';
 import AppIcon from './AppIcon.vue';
+import RichTextRenderer from './RichTextRenderer.vue';
 
 const store = useArticleStore();
 const commentInput = ref('');
+const modalScrollRef = ref<HTMLElement | null>(null);
+
+// Inline comment editing state
+const editingCommentId = ref<string | null>(null);
+const editingCommentText = ref('');
 
 const article = computed(() => store.activeArticle);
 
 // Lock background page scroll while the reader modal is open
 watch(
   article,
-  (isOpen) => {
-    const overflowValue = isOpen ? 'hidden' : '';
+  (current) => {
+    const overflowValue = current ? 'hidden' : '';
     document.body.style.overflow = overflowValue;
     document.documentElement.style.overflow = overflowValue;
+    editingCommentId.value = null;
+    editingCommentText.value = '';
+    if (current && modalScrollRef.value) {
+      modalScrollRef.value.scrollTop = 0;
+    }
   },
   { immediate: true }
 );
@@ -28,6 +40,38 @@ const fieldBadgeStyle = computed(() => {
     color: token.text,
     borderColor: token.border,
   };
+});
+
+const splitAuthorName = (fullName: string) => {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) {
+    return { prefix: '', lastWord: fullName.trim() };
+  }
+  const lastWord = parts.pop() || '';
+  return { prefix: parts.join(' ') + ' ', lastWord };
+};
+
+// Find up to 3 related articles scored by shared tags and matching science field
+const relatedArticles = computed<Article[]>(() => {
+  const current = article.value;
+  if (!current) return [];
+
+  const currentTags = new Set(current.tags.map((t) => t.toLowerCase()));
+
+  return store.articles
+    .filter((candidate) => candidate.id !== current.id)
+    .map((candidate) => {
+      let score = 0;
+      if (candidate.field === current.field) score += 2;
+      for (const tag of candidate.tags) {
+        if (currentTags.has(tag.toLowerCase())) score += 3;
+      }
+      return { candidate, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || b.candidate.likes - a.candidate.likes)
+    .slice(0, 3)
+    .map((item) => item.candidate);
 });
 
 const formatDate = (isoString: string): string => {
@@ -44,9 +88,17 @@ const closeModal = () => {
   store.activeArticle = null;
 };
 
+const switchArticle = (target: Article) => {
+  store.activeArticle = target;
+};
+
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && store.activeArticle && !store.citingArticle) {
-    closeModal();
+    if (editingCommentId.value) {
+      editingCommentId.value = null;
+    } else {
+      closeModal();
+    }
   }
 };
 
@@ -54,6 +106,23 @@ const handleAddComment = () => {
   if (!article.value || !commentInput.value.trim()) return;
   store.addComment(article.value.id, commentInput.value);
   commentInput.value = '';
+};
+
+const startEditComment = (commentId: string, currentText: string) => {
+  editingCommentId.value = commentId;
+  editingCommentText.value = currentText;
+};
+
+const saveEditComment = (commentId: string) => {
+  if (!article.value || !editingCommentText.value.trim()) return;
+  store.updateComment(article.value.id, commentId, editingCommentText.value);
+  editingCommentId.value = null;
+  editingCommentText.value = '';
+};
+
+const removeComment = (commentId: string) => {
+  if (!article.value) return;
+  store.deleteComment(article.value.id, commentId);
 };
 
 onMounted(() => window.addEventListener('keydown', handleKeydown));
@@ -93,11 +162,23 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div class="modal-scroll">
+        <div ref="modalScrollRef" class="modal-scroll">
           <h1 class="reader-title">{{ article.title }}</h1>
 
           <div class="reader-meta">
-            <span class="reader-author">{{ article.author }}</span>
+            <span class="reader-author">
+              <span>{{ splitAuthorName(article.author).prefix }}</span>
+              <span class="author-tail">
+                {{ splitAuthorName(article.author).lastWord }}
+                <span
+                  v-if="article.isVerifiedAuthor"
+                  class="verified-dot"
+                  title="Zweryfikowany autor"
+                >
+                  <AppIcon name="check" :size="10" />
+                </span>
+              </span>
+            </span>
             <span>•</span>
             <time :datetime="article.createdAt">{{ formatDate(article.createdAt) }}</time>
           </div>
@@ -107,7 +188,7 @@ onUnmounted(() => {
           </div>
 
           <div class="reader-body">
-            {{ article.content }}
+            <RichTextRenderer :content="article.content" />
           </div>
 
           <div v-if="article.tags.length > 0" class="reader-tags">
@@ -150,6 +231,7 @@ onUnmounted(() => {
             </button>
           </div>
 
+          <!-- Scientific Discussion -->
           <section class="reader-comments">
             <h3>Dyskusja naukowa ({{ article.comments.length }})</h3>
 
@@ -161,9 +243,52 @@ onUnmounted(() => {
               >
                 <div class="comment-header">
                   <strong>{{ comment.author }}</strong>
-                  <span>{{ formatDate(comment.createdAt) }}</span>
+                  <div class="comment-right-meta">
+                    <span>{{ formatDate(comment.createdAt) }}</span>
+                    <template v-if="comment.isOwn">
+                      <button
+                        type="button"
+                        class="mini-icon-btn"
+                        title="Edytuj komentarz"
+                        @click="startEditComment(comment.id, comment.text)"
+                      >
+                        <AppIcon name="edit" :size="12" />
+                      </button>
+                      <button
+                        type="button"
+                        class="mini-icon-btn danger"
+                        title="Usuń komentarz"
+                        @click="removeComment(comment.id)"
+                      >
+                        <AppIcon name="trash" :size="12" />
+                      </button>
+                    </template>
+                  </div>
                 </div>
-                <p>{{ comment.text }}</p>
+
+                <div v-if="editingCommentId === comment.id" class="comment-edit-box">
+                  <input
+                    v-model="editingCommentText"
+                    type="text"
+                    @keyup.enter="saveEditComment(comment.id)"
+                  />
+                  <button
+                    type="button"
+                    class="btn-xs-primary"
+                    @click="saveEditComment(comment.id)"
+                  >
+                    Zapisz
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-xs-secondary"
+                    @click="editingCommentId = null"
+                  >
+                    Anuluj
+                  </button>
+                </div>
+
+                <p v-else>{{ comment.text }}</p>
               </li>
             </ul>
 
@@ -177,6 +302,33 @@ onUnmounted(() => {
                 Dodaj komentarz
               </button>
             </form>
+          </section>
+
+          <!-- Related Publications -->
+          <section v-if="relatedArticles.length > 0" class="related-section">
+            <h3>Powiązane publikacje</h3>
+            <div class="related-grid">
+              <button
+                v-for="rel in relatedArticles"
+                :key="rel.id"
+                type="button"
+                class="related-card"
+                @click="switchArticle(rel)"
+              >
+                <span
+                  class="rel-field"
+                  :style="{
+                    backgroundColor: FIELD_STYLES[rel.field].bg,
+                    color: FIELD_STYLES[rel.field].text,
+                    borderColor: FIELD_STYLES[rel.field].border,
+                  }"
+                >
+                  {{ rel.field }}
+                </span>
+                <p class="rel-title">{{ rel.title }}</p>
+                <span class="rel-meta">{{ rel.author }} • {{ rel.likes }} polubień</span>
+              </button>
+            </div>
           </section>
         </div>
       </div>
@@ -214,6 +366,7 @@ onUnmounted(() => {
   padding: 14px 22px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-subtle);
+  flex-shrink: 0;
 }
 
 .modal-badges {
@@ -283,8 +436,32 @@ onUnmounted(() => {
 }
 
 .reader-author {
+  display: inline;
   font-weight: 700;
   color: var(--text-main);
+}
+
+.author-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.verified-dot {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme='dark'] .verified-dot {
+  color: #0f1117;
 }
 
 .reader-figure {
@@ -367,9 +544,11 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.reader-comments h3 {
+.reader-comments h3,
+.related-section h3 {
   font-size: 0.98rem;
   font-weight: 700;
+  color: var(--text-main);
 }
 
 .comments-list {
@@ -389,14 +568,78 @@ onUnmounted(() => {
 .comment-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: 0.8rem;
   margin-bottom: 4px;
 }
 
-.comment-header span {
+.comment-right-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comment-right-meta span {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+.mini-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: inline-flex;
+  padding: 2px;
+}
+
+.mini-icon-btn:hover {
+  color: var(--text-main);
+}
+
+.mini-icon-btn.danger:hover {
+  color: var(--danger);
+}
+
+.comment-edit-box {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.comment-edit-box input {
+  flex: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.85rem;
+}
+
+.btn-xs-primary,
+.btn-xs-secondary {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.btn-xs-primary {
+  background: var(--primary);
+  border: none;
+  color: #ffffff;
+}
+
+[data-theme='dark'] .btn-xs-primary {
+  color: #0f1117;
+}
+
+.btn-xs-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
 }
 
 .comment-item p {
@@ -435,6 +678,66 @@ onUnmounted(() => {
 
 .comment-form button:disabled {
   opacity: 0.45;
+}
+
+/* Related Articles */
+.related-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.related-card {
+  text-align: left;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.related-card:hover {
+  border-color: var(--primary-border);
+  background: var(--bg-hover);
+}
+
+.rel-field {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.rel-title {
+  font-family: var(--font-serif);
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rel-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
 @media (max-width: 640px) {
