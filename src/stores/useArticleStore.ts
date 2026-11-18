@@ -31,6 +31,29 @@ const DEFAULT_PROFILE: UserProfile = {
   isVerified: true,
 };
 
+const computeScientometrics = (list: Article[]) => {
+  const scores = list
+    .map((a) => a.likes + a.comments.length * 2)
+    .sort((a, b) => b - a);
+
+  const totalImpact = scores.reduce((sum, val) => sum + val, 0);
+
+  let hIndex = 0;
+  for (let i = 0; i < scores.length; i++) {
+    if (scores[i] >= i + 1) {
+      hIndex = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    publications: list.length,
+    citations: totalImpact,
+    hIndex,
+  };
+};
+
 export const useArticleStore = defineStore('articles', () => {
   // --- Toast Notifications ---
   const toasts = ref<ToastItem[]>([]);
@@ -219,9 +242,13 @@ export const useArticleStore = defineStore('articles', () => {
         Boolean(article.isOwn) ||
         article.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase();
 
+      // Full-text search across title, abstract/content, author, tags, and private notes
       const matchesSearch =
         !query ||
         article.title.toLowerCase().includes(query) ||
+        article.content.toLowerCase().includes(query) ||
+        article.author.toLowerCase().includes(query) ||
+        Boolean(article.personalNote && article.personalNote.toLowerCase().includes(query)) ||
         article.tags.some((t) => t.toLowerCase().includes(query));
 
       return (
@@ -244,33 +271,34 @@ export const useArticleStore = defineStore('articles', () => {
     });
   });
 
-  // Scientometric profile indicators (publications, citations/impact, Hirsch h-index)
+  // Scientometric profile indicators for current user
   const researcherMetrics = computed(() => {
     const ownList = articles.value.filter(
       (a) =>
         a.isOwn ||
         a.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase()
     );
+    return computeScientometrics(ownList);
+  });
 
-    const scores = ownList
-      .map((a) => a.likes + a.comments.length * 2)
-      .sort((a, b) => b - a);
+  // Summary card data when filtering by any specific author
+  const selectedAuthorSummary = computed(() => {
+    if (!selectedAuthor.value) return null;
+    const target = selectedAuthor.value.trim().toLowerCase();
+    const authorArticles = articles.value.filter(
+      (a) => a.author.trim().toLowerCase() === target
+    );
+    if (authorArticles.length === 0) return null;
 
-    const totalImpact = scores.reduce((sum, val) => sum + val, 0);
-
-    let hIndex = 0;
-    for (let i = 0; i < scores.length; i++) {
-      if (scores[i] >= i + 1) {
-        hIndex = i + 1;
-      } else {
-        break;
-      }
-    }
+    const metrics = computeScientometrics(authorArticles);
+    const isVerified = authorArticles.some((a) => Boolean(a.isVerifiedAuthor));
+    const fields = Array.from(new Set(authorArticles.map((a) => a.field)));
 
     return {
-      publications: ownList.length,
-      citations: totalImpact,
-      hIndex,
+      name: authorArticles[0].author,
+      isVerified,
+      fields,
+      ...metrics,
     };
   });
 
@@ -614,6 +642,7 @@ export const useArticleStore = defineStore('articles', () => {
     citingArticle,
     filteredArticles,
     researcherMetrics,
+    selectedAuthorSummary,
     topLikedArticles,
     savedArticles,
     popularTags,
