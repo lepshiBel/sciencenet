@@ -5,9 +5,10 @@ Portal społecznościowy i repozytorium dla ludzi nauki zbudowane we **Vue 3**, 
 ## Funkcjonalności
 
 - **Główna tablica publikacji i pełnotekstowe wyszukiwanie:** zwijany edytor z panelem szybkiego wstawiania (wzory, równania, tezy, bloki kodu) i trybem **Podglądu na żywo**, sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane) oraz wyszukiwanie po tytułach, treści, autorach, tagach i prywatnych notatkach.
+- **Kontrola własności i aktywność sieci:** edycja oraz usuwanie publikacji ograniczone wyłącznie do autora pracy (`Twoja praca`), w połączeniu z symulatorem aktywności społeczności naukowej (nowe komentarze, polecenia i preprinty).
 - **Formatowanie naukowe treści:** bezpieczny parser bloków kodu (` ``` `), formuł matematycznych w linii (`$...$`) i blokowych (`$$...$$`) z obsługą indeksów i symboli greckich oraz wyróżnionych tez badawczych (`>`).
 - **Taksonomia i profil badacza:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki, interaktywne tagi (`#słowa-kluczowe`), karta podsumowania wybranego autora oraz wskaźniki naukometryczne (publikacje, cytowania, `h-index`).
-- **Czytelnia i prywatne notatki badawcze:** pełnoekranowy tryb czytania z dyskusją naukową (edycja i usuwanie komentarzy), sekcją *Powiązane publikacje*, prywatnymi notatkami badacza (`personalNote`) oraz jednolitym widokiem czytelni (`/saved`).
+- **Czytelnia badacza z kolekcjami i drukiem PDF:** pełnoekranowy tryb czytania z dyskusją naukową, funkcją **Drukuj / PDF** (`@media print`), sekcją *Powiązane publikacje*, prywatnymi notatkami badacza (`personalNote`) oraz kolekcjami w czytelni (`/saved`: *Wszystkie*, *Z notatkami*, *Moje publikacje* + filtr dziedzin).
 - **Generator cytowań i archiwum (APA, BibTeX, JSON):** kopiowanie pojedynczych cytowań APA/BibTeX, zbiorczy eksport całej czytelni do pliku `.bib` oraz eksport/import bazy danych w formacie `.json`.
 - **Motywy i responsywność (RWD):** tryb jasny i ciemny (*Light / Dark*), powiadomienia Toast z funkcją cofania usunięcia oraz 3-kolumnowy układ adaptujący się do urządzeń mobilnych.
 

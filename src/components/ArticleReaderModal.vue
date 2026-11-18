@@ -97,6 +97,10 @@ const switchArticle = (target: Article) => {
   store.activeArticle = target;
 };
 
+const printArticle = () => {
+  window.print();
+};
+
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && store.activeArticle && !store.citingArticle) {
     if (editingCommentId.value) {
@@ -148,7 +152,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       v-if="article"
-      class="modal-backdrop"
+      class="modal-backdrop print-reader-root"
       role="dialog"
       aria-modal="true"
       @click.self="closeModal"
@@ -162,14 +166,26 @@ onUnmounted(() => {
             <span class="type-badge">{{ article.publicationType }}</span>
           </div>
 
-          <button
-            type="button"
-            class="close-modal-btn"
-            aria-label="Zamknij tryb czytania"
-            @click="closeModal"
-          >
-            <AppIcon name="close" :size="18" />
-          </button>
+          <div class="topbar-controls no-print">
+            <button
+              type="button"
+              class="print-btn"
+              title="Drukuj publikację lub zapisz jako PDF"
+              @click="printArticle"
+            >
+              <AppIcon name="download" :size="14" />
+              <span>Drukuj / PDF</span>
+            </button>
+
+            <button
+              type="button"
+              class="close-modal-btn"
+              aria-label="Zamknij tryb czytania"
+              @click="closeModal"
+            >
+              <AppIcon name="close" :size="18" />
+            </button>
+          </div>
         </div>
 
         <div ref="modalScrollRef" class="modal-scroll">
@@ -207,7 +223,7 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <div class="reader-actions">
+          <div class="reader-actions no-print">
             <button
               type="button"
               class="action-btn"
@@ -242,22 +258,32 @@ onUnmounted(() => {
           </div>
 
           <!-- Private Researcher Margin Note -->
-          <section class="margin-note-box">
+          <section
+            class="margin-note-box"
+            :class="{ 'no-print': !article.personalNote }"
+          >
             <div class="margin-note-header">
               <div class="margin-note-title">
                 <AppIcon name="edit" :size="14" />
-                <span>Prywatna notatka badawcza (tylko dla Ciebie)</span>
+                <span>Prywatna notatka badawcza</span>
               </div>
-              <span v-if="article.personalNote" class="note-saved-badge">Zapisano</span>
+              <span v-if="article.personalNote" class="note-saved-badge no-print">
+                Zapisano
+              </span>
             </div>
 
             <textarea
               v-model="noteDraft"
+              class="no-print"
               rows="2"
               placeholder="Zapisz własne wnioski, cytat do pracy dyplomowej lub uwagi metodologiczne..."
             ></textarea>
 
-            <div class="margin-note-actions">
+            <p v-if="article.personalNote" class="print-only-note">
+              {{ article.personalNote }}
+            </p>
+
+            <div class="margin-note-actions no-print">
               <button
                 v-if="article.personalNote"
                 type="button"
@@ -278,7 +304,7 @@ onUnmounted(() => {
           </section>
 
           <!-- Scientific Discussion -->
-          <section class="reader-comments">
+          <section class="reader-comments no-print">
             <h3>Dyskusja naukowa ({{ article.comments.length }})</h3>
 
             <ul v-if="article.comments.length > 0" class="comments-list">
@@ -351,7 +377,7 @@ onUnmounted(() => {
           </section>
 
           <!-- Related Publications -->
-          <section v-if="relatedArticles.length > 0" class="related-section">
+          <section v-if="relatedArticles.length > 0" class="related-section no-print">
             <h3>Powiązane publikacje</h3>
             <div class="related-grid">
               <button
@@ -419,6 +445,31 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.print-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
 }
 
 .field-badge {
@@ -634,6 +685,10 @@ onUnmounted(() => {
 .margin-note-box textarea:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.print-only-note {
+  display: none;
 }
 
 .margin-note-actions {
@@ -858,6 +913,72 @@ onUnmounted(() => {
   }
   .reader-title {
     font-size: 1.35rem;
+  }
+}
+</style>
+
+<style>
+/* Clean Academic Print / PDF Layout */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  /* Completely remove #app and toasts from print flow so there are no blank pages */
+  body > *:not(.print-reader-root) {
+    display: none !important;
+  }
+
+  .print-reader-root {
+    position: static !important;
+    inset: auto !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .print-reader-root .modal-sheet {
+    max-width: 100% !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .print-reader-root .modal-topbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #d1d5db !important;
+    padding: 0 0 10px 0 !important;
+  }
+
+  .print-reader-root .modal-scroll {
+    overflow: visible !important;
+    padding: 16px 0 0 0 !important;
+  }
+
+  .print-reader-root .reader-title,
+  .print-reader-root .reader-author,
+  .print-reader-root .reader-body,
+  .print-reader-root .math-formula,
+  .print-reader-root .inline-math,
+  .print-reader-root .code-block pre {
+    color: #111827 !important;
+  }
+
+  .print-reader-root .no-print {
+    display: none !important;
+  }
+
+  .print-reader-root .print-only-note {
+    display: block !important;
+    font-size: 0.9rem;
+    color: #1f2937 !important;
+    white-space: pre-line;
   }
 }
 </style>
