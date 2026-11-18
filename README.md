@@ -4,14 +4,12 @@ Portal społecznościowy i repozytorium dla ludzi nauki zbudowane we **Vue 3**, 
 
 ## Funkcjonalności
 
-- **Główna tablica publikacji:** zwijany formularz tworzenia wpisów, sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane), obsługa kart z ryciną (URL) oraz bez obrazka, szacowany czas czytania.
-- **Formatowanie naukowe treści:** wsparcie dla bloków kodu (` ``` `), formuł i zmiennych w tekście (` ` `) oraz wyróżnionych tez badawczych (`>`).
-- **Formaty prac i taksonomia:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki, interaktywne tagi (`#słowa-kluczowe`) oraz filtrowanie po wybranym autorze.
-- **Generator cytowań (APA & BibTeX):** automatyczne tworzenie gotowych opisów bibliograficznych z kopiowaniem do schowka jednym kliknięciem.
-- **Tryb czytania (Reader Modal):** pełnoekranowy widok skupionej lektury z dyskusją naukową (edycja i usuwanie własnych komentarzy) oraz sekcją *Powiązane publikacje*.
-- **Profil badacza i wskaźniki naukometryczne:** edytowalna wizytówka z automatycznym obliczaniem liczby publikacji, cytowań oraz indeksu Hirscha (`h-index`), status weryfikacji akademickiej oraz przełącznik motywu jasnego i ciemnego (*Light / Dark*).
-- **Analityka i archiwum JSON:** rozkład publikacji według dziedzin nauki w panelu bocznym, powiadomienia Toast (z funkcją cofnięcia usunięcia) oraz eksport/import bazy danych w formacie `.json`.
-- **Responsywność (RWD):** 3-kolumnowy układ na desktopie oraz czytelny układ 1-kolumnowy na urządzeniach mobilnych.
+- **Główna tablica publikacji i pełnotekstowe wyszukiwanie:** zwijany edytor z panelem szybkiego wstawiania (wzory, równania, tezy, bloki kodu) i trybem **Podglądu na żywo**, sortowanie (najnowsze, najpopularniejsze, najczęściej komentowane) oraz wyszukiwanie po tytułach, treści, autorach, tagach i prywatnych notatkach.
+- **Formatowanie naukowe treści:** bezpieczny parser bloków kodu (` ``` `), formuł matematycznych w linii (`$...$`) i blokowych (`$$...$$`) z obsługą indeksów i symboli greckich oraz wyróżnionych tez badawczych (`>`).
+- **Taksonomia i profil badacza:** podział na *Artykuł badawczy*, *Przegląd*, *Preprint* oraz *Notatkę badawczą*, kategoryzacja według dziedzin nauki, interaktywne tagi (`#słowa-kluczowe`), karta podsumowania wybranego autora oraz wskaźniki naukometryczne (publikacje, cytowania, `h-index`).
+- **Czytelnia i prywatne notatki badawcze:** pełnoekranowy tryb czytania z dyskusją naukową (edycja i usuwanie komentarzy), sekcją *Powiązane publikacje*, prywatnymi notatkami badacza (`personalNote`) oraz jednolitym widokiem czytelni (`/saved`).
+- **Generator cytowań i archiwum (APA, BibTeX, JSON):** kopiowanie pojedynczych cytowań APA/BibTeX, zbiorczy eksport całej czytelni do pliku `.bib` oraz eksport/import bazy danych w formacie `.json`.
+- **Motywy i responsywność (RWD):** tryb jasny i ciemny (*Light / Dark*), powiadomienia Toast z funkcją cofania usunięcia oraz 3-kolumnowy układ adaptujący się do urządzeń mobilnych.
 
 ## Uruchomienie projektu
 

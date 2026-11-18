@@ -12,17 +12,93 @@ const copiedIndex = ref<number | null>(null);
 
 type BlockSegment =
   | { type: 'code'; code: string; lang: string }
+  | { type: 'math-block'; expr: string }
   | { type: 'quote'; text: string }
   | { type: 'paragraph'; text: string };
 
 type InlineToken =
   | { type: 'text'; value: string }
-  | { type: 'code'; value: string };
+  | { type: 'code'; value: string }
+  | { type: 'math'; value: string };
 
-// Parse fenced code blocks (```...```), blockquotes (> ...), and regular paragraphs
+type MathPart =
+  | { kind: 'plain'; text: string }
+  | { kind: 'sup'; text: string }
+  | { kind: 'sub'; text: string };
+
+const SYMBOL_MAP: Record<string, string> = {
+  '\\alpha': 'α',
+  '\\beta': 'β',
+  '\\gamma': 'γ',
+  '\\delta': 'δ',
+  '\\Delta': 'Δ',
+  '\\epsilon': 'ε',
+  '\\theta': 'θ',
+  '\\lambda': 'λ',
+  '\\mu': 'μ',
+  '\\pi': 'π',
+  '\\sigma': 'σ',
+  '\\Sigma': 'Σ',
+  '\\tau': 'τ',
+  '\\phi': 'φ',
+  '\\omega': 'ω',
+  '\\Omega': 'Ω',
+  '\\sum': '∑',
+  '\\int': '∫',
+  '\\sqrt': '√',
+  '\\approx': '≈',
+  '\\neq': '≠',
+  '\\le': '≤',
+  '\\ge': '≥',
+  '\\pm': '±',
+  '\\infty': '∞',
+  '\\cdot': '·',
+  '\\times': '×',
+  '\\to': '→',
+  '\\in': '∈',
+};
+
+// Replace LaTeX symbol commands with clean Unicode glyphs
+const normalizeMathSymbols = (raw: string): string => {
+  let out = raw;
+  for (const [cmd, glyph] of Object.entries(SYMBOL_MAP)) {
+    out = out.split(cmd).join(glyph);
+  }
+  return out;
+};
+
+// Parse superscripts (^2, ^{n+1}) and subscripts (_i, _{max}) safely into VNode parts
+const parseMathParts = (expr: string): MathPart[] => {
+  const normalized = normalizeMathSymbols(expr.trim());
+  const parts: MathPart[] = [];
+  const scriptRegex = /(\^|_)(?:\{([^}]+)\}|([A-Za-z0-9+-]+))/g;
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = scriptRegex.exec(normalized)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push({ kind: 'plain', text: normalized.slice(lastIdx, match.index) });
+    }
+    const marker = match[1];
+    const value = match[2] ?? match[3] ?? '';
+    parts.push({
+      kind: marker === '^' ? 'sup' : 'sub',
+      text: value,
+    });
+    lastIdx = scriptRegex.lastIndex;
+  }
+
+  if (lastIdx < normalized.length) {
+    parts.push({ kind: 'plain', text: normalized.slice(lastIdx) });
+  }
+
+  return parts;
+};
+
+// Parse fenced code blocks (```...```), display math ($$...$$), blockquotes (> ...), and paragraphs
 const blocks = computed<BlockSegment[]>(() => {
   const result: BlockSegment[] = [];
-  const fenceRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
+  const blockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```|\$\$([\s\S]*?)\$\$/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -45,16 +121,25 @@ const blocks = computed<BlockSegment[]>(() => {
     }
   };
 
-  while ((match = fenceRegex.exec(props.content)) !== null) {
+  while ((match = blockRegex.exec(props.content)) !== null) {
     if (match.index > lastIndex) {
       pushTextChunk(props.content.slice(lastIndex, match.index));
     }
-    result.push({
-      type: 'code',
-      lang: (match[1] || 'code').toLowerCase(),
-      code: match[2].replace(/\n$/, ''),
-    });
-    lastIndex = fenceRegex.lastIndex;
+
+    if (match[2] !== undefined) {
+      result.push({
+        type: 'code',
+        lang: (match[1] || 'code').toLowerCase(),
+        code: match[2].replace(/\n$/, ''),
+      });
+    } else if (match[3] !== undefined) {
+      result.push({
+        type: 'math-block',
+        expr: match[3].trim(),
+      });
+    }
+
+    lastIndex = blockRegex.lastIndex;
   }
 
   if (lastIndex < props.content.length) {
@@ -64,10 +149,10 @@ const blocks = computed<BlockSegment[]>(() => {
   return result;
 });
 
-// Split inline `code` / formula tokens safely without innerHTML
+// Split inline `code` and $math$ tokens safely without innerHTML
 const parseInline = (text: string): InlineToken[] => {
   const tokens: InlineToken[] = [];
-  const inlineRegex = /`([^`]+)`/g;
+  const inlineRegex = /`([^`]+)`|\$([^$\n]+)\$/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -75,7 +160,11 @@ const parseInline = (text: string): InlineToken[] => {
     if (match.index > lastIndex) {
       tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) });
     }
-    tokens.push({ type: 'code', value: match[1] });
+    if (match[1] !== undefined) {
+      tokens.push({ type: 'code', value: match[1] });
+    } else if (match[2] !== undefined) {
+      tokens.push({ type: 'math', value: match[2] });
+    }
     lastIndex = inlineRegex.lastIndex;
   }
 
@@ -119,18 +208,43 @@ const copyCodeBlock = async (code: string, idx: number) => {
         <pre><code>{{ block.code }}</code></pre>
       </div>
 
+      <!-- Display Equation Block ($$ ... $$) -->
+      <div v-else-if="block.type === 'math-block'" class="math-display">
+        <span class="math-formula">
+          <template v-for="(part, pIdx) in parseMathParts(block.expr)" :key="pIdx">
+            <sup v-if="part.kind === 'sup'">{{ part.text }}</sup>
+            <sub v-else-if="part.kind === 'sub'">{{ part.text }}</sub>
+            <span v-else>{{ part.text }}</span>
+          </template>
+        </span>
+      </div>
+
       <!-- Scientific Quote / Hypothesis Callout -->
       <blockquote v-else-if="block.type === 'quote'" class="science-quote">
         <template v-for="(tok, tIdx) in parseInline(block.text)" :key="tIdx">
           <code v-if="tok.type === 'code'" class="inline-code">{{ tok.value }}</code>
+          <span v-else-if="tok.type === 'math'" class="inline-math">
+            <template v-for="(part, pIdx) in parseMathParts(tok.value)" :key="pIdx">
+              <sup v-if="part.kind === 'sup'">{{ part.text }}</sup>
+              <sub v-else-if="part.kind === 'sub'">{{ part.text }}</sub>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </span>
           <span v-else>{{ tok.value }}</span>
         </template>
       </blockquote>
 
-      <!-- Standard Paragraph with Inline Code/Formulas -->
+      <!-- Standard Paragraph with Inline Code & Formulas -->
       <p v-else class="rich-paragraph">
         <template v-for="(tok, tIdx) in parseInline(block.text)" :key="tIdx">
           <code v-if="tok.type === 'code'" class="inline-code">{{ tok.value }}</code>
+          <span v-else-if="tok.type === 'math'" class="inline-math">
+            <template v-for="(part, pIdx) in parseMathParts(tok.value)" :key="pIdx">
+              <sup v-if="part.kind === 'sup'">{{ part.text }}</sup>
+              <sub v-else-if="part.kind === 'sub'">{{ part.text }}</sub>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </span>
           <span v-else>{{ tok.value }}</span>
         </template>
       </p>
@@ -158,6 +272,39 @@ const copyCodeBlock = async (code: string, idx: number) => {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   color: var(--primary);
+}
+
+.inline-math {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.04em;
+  padding: 0 3px;
+  color: var(--text-main);
+}
+
+.inline-math sup,
+.inline-math sub,
+.math-formula sup,
+.math-formula sub {
+  font-size: 0.72em;
+  line-height: 0;
+}
+
+.math-display {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  text-align: center;
+  overflow-x: auto;
+}
+
+.math-formula {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  color: var(--text-main);
 }
 
 .science-quote {

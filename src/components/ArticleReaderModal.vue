@@ -14,6 +14,9 @@ const modalScrollRef = ref<HTMLElement | null>(null);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
 
+// Private researcher margin note draft
+const noteDraft = ref('');
+
 const article = computed(() => store.activeArticle);
 
 // Lock background page scroll while the reader modal is open
@@ -25,6 +28,7 @@ watch(
     document.documentElement.style.overflow = overflowValue;
     editingCommentId.value = null;
     editingCommentText.value = '';
+    noteDraft.value = current?.personalNote || '';
     if (current && modalScrollRef.value) {
       modalScrollRef.value.scrollTop = 0;
     }
@@ -42,6 +46,7 @@ const fieldBadgeStyle = computed(() => {
   };
 });
 
+// Keep the last word of the author's name bound to the verification badge
 const splitAuthorName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length <= 1) {
@@ -100,6 +105,11 @@ const handleKeydown = (e: KeyboardEvent) => {
       closeModal();
     }
   }
+};
+
+const handleSaveNote = () => {
+  if (!article.value) return;
+  store.updatePersonalNote(article.value.id, noteDraft.value);
 };
 
 const handleAddComment = () => {
@@ -230,6 +240,42 @@ onUnmounted(() => {
               <span>Cytuj</span>
             </button>
           </div>
+
+          <!-- Private Researcher Margin Note -->
+          <section class="margin-note-box">
+            <div class="margin-note-header">
+              <div class="margin-note-title">
+                <AppIcon name="edit" :size="14" />
+                <span>Prywatna notatka badawcza (tylko dla Ciebie)</span>
+              </div>
+              <span v-if="article.personalNote" class="note-saved-badge">Zapisano</span>
+            </div>
+
+            <textarea
+              v-model="noteDraft"
+              rows="2"
+              placeholder="Zapisz własne wnioski, cytat do pracy dyplomowej lub uwagi metodologiczne..."
+            ></textarea>
+
+            <div class="margin-note-actions">
+              <button
+                v-if="article.personalNote"
+                type="button"
+                class="btn-xs-secondary"
+                @click="noteDraft = ''; handleSaveNote()"
+              >
+                Wyczyść
+              </button>
+              <button
+                type="button"
+                class="btn-xs-primary"
+                :disabled="noteDraft.trim() === (article.personalNote || '')"
+                @click="handleSaveNote"
+              >
+                Zapisz notatkę
+              </button>
+            </div>
+          </section>
 
           <!-- Scientific Discussion -->
           <section class="reader-comments">
@@ -484,7 +530,6 @@ onUnmounted(() => {
   font-size: 1.02rem;
   line-height: 1.75;
   color: var(--text-secondary);
-  white-space: pre-line;
   max-width: 68ch;
 }
 
@@ -536,6 +581,70 @@ onUnmounted(() => {
   background: var(--primary-soft);
   border-color: var(--primary-border);
   color: var(--primary);
+}
+
+/* Private Researcher Margin Note */
+.margin-note-box {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--primary-border);
+  background: var(--primary-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.margin-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.margin-note-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.note-saved-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.margin-note-box textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.margin-note-box textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.margin-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.margin-note-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .reader-comments {

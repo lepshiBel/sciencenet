@@ -31,6 +31,29 @@ const DEFAULT_PROFILE: UserProfile = {
   isVerified: true,
 };
 
+const computeScientometrics = (list: Article[]) => {
+  const scores = list
+    .map((a) => a.likes + a.comments.length * 2)
+    .sort((a, b) => b - a);
+
+  const totalImpact = scores.reduce((sum, val) => sum + val, 0);
+
+  let hIndex = 0;
+  for (let i = 0; i < scores.length; i++) {
+    if (scores[i] >= i + 1) {
+      hIndex = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    publications: list.length,
+    citations: totalImpact,
+    hIndex,
+  };
+};
+
 export const useArticleStore = defineStore('articles', () => {
   // --- Toast Notifications ---
   const toasts = ref<ToastItem[]>([]);
@@ -219,9 +242,13 @@ export const useArticleStore = defineStore('articles', () => {
         Boolean(article.isOwn) ||
         article.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase();
 
+      // Full-text search across title, abstract/content, author, tags, and private notes
       const matchesSearch =
         !query ||
         article.title.toLowerCase().includes(query) ||
+        article.content.toLowerCase().includes(query) ||
+        article.author.toLowerCase().includes(query) ||
+        Boolean(article.personalNote && article.personalNote.toLowerCase().includes(query)) ||
         article.tags.some((t) => t.toLowerCase().includes(query));
 
       return (
@@ -244,33 +271,34 @@ export const useArticleStore = defineStore('articles', () => {
     });
   });
 
-  // Scientometric profile indicators (publications, citations/impact, Hirsch h-index)
+  // Scientometric profile indicators for current user
   const researcherMetrics = computed(() => {
     const ownList = articles.value.filter(
       (a) =>
         a.isOwn ||
         a.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase()
     );
+    return computeScientometrics(ownList);
+  });
 
-    const scores = ownList
-      .map((a) => a.likes + a.comments.length * 2)
-      .sort((a, b) => b - a);
+  // Summary card data when filtering by any specific author
+  const selectedAuthorSummary = computed(() => {
+    if (!selectedAuthor.value) return null;
+    const target = selectedAuthor.value.trim().toLowerCase();
+    const authorArticles = articles.value.filter(
+      (a) => a.author.trim().toLowerCase() === target
+    );
+    if (authorArticles.length === 0) return null;
 
-    const totalImpact = scores.reduce((sum, val) => sum + val, 0);
-
-    let hIndex = 0;
-    for (let i = 0; i < scores.length; i++) {
-      if (scores[i] >= i + 1) {
-        hIndex = i + 1;
-      } else {
-        break;
-      }
-    }
+    const metrics = computeScientometrics(authorArticles);
+    const isVerified = authorArticles.some((a) => Boolean(a.isVerifiedAuthor));
+    const fields = Array.from(new Set(authorArticles.map((a) => a.field)));
 
     return {
-      publications: ownList.length,
-      citations: totalImpact,
-      hIndex,
+      name: authorArticles[0].author,
+      isVerified,
+      fields,
+      ...metrics,
     };
   });
 
@@ -397,6 +425,20 @@ export const useArticleStore = defineStore('articles', () => {
     );
   };
 
+  const updatePersonalNote = (articleId: string, note: string): void => {
+    const target = articles.value.find((a) => a.id === articleId);
+    if (!target) return;
+
+    const trimmed = note.trim();
+    target.personalNote = trimmed || undefined;
+    if (trimmed && !target.isSaved) {
+      target.isSaved = true;
+    }
+    notify(trimmed ? 'Zapisano notatkę badawczą' : 'Usunięto notatkę', {
+      duration: 2200,
+    });
+  };
+
   const addComment = (articleId: string, text: string, author?: string): void => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -481,7 +523,7 @@ export const useArticleStore = defineStore('articles', () => {
     notify('Przywrócono domyślny zbiór publikacji');
   };
 
-  // --- JSON Backup Export / Import ---
+  // --- JSON & BibTeX Export / Import ---
   const exportArticlesJson = (): void => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -498,6 +540,47 @@ export const useArticleStore = defineStore('articles', () => {
     link.click();
     URL.revokeObjectURL(url);
     notify('Wyeksportowano archiwum publikacji (.json)');
+  };
+
+  const exportSavedBibtex = (): void => {
+    const list = savedArticles.value;
+    if (list.length === 0) {
+      notify('Czytelnia jest pusta — brak pozycji do eksportu');
+      return;
+    }
+
+    const entries = list.map((art) => {
+      const year = new Date(art.createdAt).getFullYear();
+      const lastName = (art.author.trim().split(/\s+/).pop() || 'author')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const key = `${lastName || 'ref'}${year}_${art.id.slice(-3)}`;
+      const entryType =
+        art.publicationType === 'Preprint' || art.publicationType === 'Notatka badawcza'
+          ? 'misc'
+          : 'article';
+
+      return [
+        `@${entryType}{${key},`,
+        `  author = {${art.author}},`,
+        `  title = {{${art.title}}},`,
+        `  journal = {ScienceNet (${art.field})},`,
+        `  year = {${year}},`,
+        `  note = {${art.publicationType}}`,
+        `}`,
+      ].join('\n');
+    });
+
+    const blob = new Blob([entries.join('\n\n') + '\n'], {
+      type: 'application/x-bibtex;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sciencenet-czytelnia-${new Date().toISOString().slice(0, 10)}.bib`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify(`Wyeksportowano ${list.length} pozycji do pliku .bib`);
   };
 
   const importArticlesJson = (rawJson: string): boolean => {
@@ -526,6 +609,7 @@ export const useArticleStore = defineStore('articles', () => {
           likes: typeof item.likes === 'number' ? item.likes : 0,
           isLiked: Boolean(item.isLiked),
           isSaved: Boolean(item.isSaved),
+          personalNote: typeof item.personalNote === 'string' ? item.personalNote : undefined,
           comments: Array.isArray(item.comments) ? item.comments : [],
         }));
 
@@ -558,6 +642,7 @@ export const useArticleStore = defineStore('articles', () => {
     citingArticle,
     filteredArticles,
     researcherMetrics,
+    selectedAuthorSummary,
     topLikedArticles,
     savedArticles,
     popularTags,
@@ -567,6 +652,7 @@ export const useArticleStore = defineStore('articles', () => {
     deleteArticle,
     toggleLike,
     toggleSave,
+    updatePersonalNote,
     addComment,
     updateComment,
     deleteComment,
@@ -575,6 +661,7 @@ export const useArticleStore = defineStore('articles', () => {
     resetFilters,
     resetDemoData,
     exportArticlesJson,
+    exportSavedBibtex,
     importArticlesJson,
   };
 });
