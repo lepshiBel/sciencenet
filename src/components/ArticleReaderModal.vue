@@ -920,17 +920,21 @@ onUnmounted(() => {
 <style>
 /* Clean Academic Print / PDF Layout */
 @media print {
-  body * {
-    visibility: hidden !important;
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
   }
 
-  .print-reader-root,
-  .print-reader-root * {
-    visibility: visible !important;
+  /* Completely remove #app and toasts from print flow so there are no blank pages */
+  body > *:not(.print-reader-root) {
+    display: none !important;
   }
 
   .print-reader-root {
     position: static !important;
+    inset: auto !important;
     background: #ffffff !important;
     backdrop-filter: none !important;
     padding: 0 !important;
@@ -961,7 +965,8 @@ onUnmounted(() => {
   .print-reader-root .reader-author,
   .print-reader-root .reader-body,
   .print-reader-root .math-formula,
-  .print-reader-root .inline-math {
+  .print-reader-root .inline-math,
+  .print-reader-root .code-block pre {
     color: #111827 !important;
   }
 
