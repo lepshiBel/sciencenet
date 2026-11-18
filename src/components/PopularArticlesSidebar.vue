@@ -47,6 +47,28 @@ const handleFileChange = (event: Event) => {
 
 <template>
   <aside class="sidebar-wrapper">
+    <!-- Live Academic Community Pulse -->
+    <div class="card sidebar-card pulse-card">
+      <div class="pulse-header">
+        <h3 class="sidebar-title pulse-title">
+          <span class="live-dot"></span>
+          <span>Aktywność sieci</span>
+        </h3>
+        <span class="online-count">5 badaczy online</span>
+      </div>
+      <p class="info-text">
+        Zasymuluj nowe komentarze, polecenia lub preprinty od innych naukowców.
+      </p>
+      <button
+        type="button"
+        class="simulate-btn"
+        @click="store.simulateNetworkActivity"
+      >
+        <AppIcon name="trending" :size="14" />
+        <span>Odśwież aktywność sieci</span>
+      </button>
+    </div>
+
     <!-- Top Liked Publications -->
     <div class="card sidebar-card">
       <h3 class="sidebar-title">
@@ -200,6 +222,57 @@ const handleFileChange = (event: Event) => {
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 12px;
+}
+
+/* Live Community Pulse */
+.pulse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pulse-title {
+  margin-bottom: 0;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.online-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.simulate-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--primary-border);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.simulate-btn:hover {
+  background: var(--bg-hover);
+}
+
+.simulate-btn:active {
+  transform: scale(0.98);
 }
 
 .popular-list {

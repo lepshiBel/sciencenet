@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Article } from '../types/article';
 import { FIELD_STYLES } from '../data/mockArticles';
+import { useArticleStore } from '../stores/useArticleStore';
 import AppIcon from './AppIcon.vue';
 import RichTextRenderer from './RichTextRenderer.vue';
 
@@ -20,6 +21,17 @@ const emit = defineEmits<{
   (e: 'select-tag', tag: string): void;
   (e: 'select-author', author: string): void;
 }>();
+
+const store = useArticleStore();
+
+// Only the author of the publication can edit or delete it
+const canManage = computed(() => {
+  return (
+    Boolean(props.article.isOwn) ||
+    props.article.author.trim().toLowerCase() ===
+      store.currentUser.name.trim().toLowerCase()
+  );
+});
 
 const fieldBadgeStyle = computed(() => {
   const token = FIELD_STYLES[props.article.field];
@@ -87,6 +99,8 @@ const formatDate = (isoString: string): string => {
           </span>
         </button>
 
+        <span v-if="canManage" class="own-badge">Twoja praca</span>
+
         <span class="dot">•</span>
         <time class="date" :datetime="article.createdAt">
           {{ formatDate(article.createdAt) }}
@@ -98,7 +112,7 @@ const formatDate = (isoString: string): string => {
         </span>
       </div>
 
-      <!-- Bookmark, Edit & Delete Controls -->
+      <!-- Bookmark & Owner-Only Controls -->
       <div class="card-controls">
         <button
           type="button"
@@ -114,23 +128,25 @@ const formatDate = (isoString: string): string => {
           <span>{{ article.isSaved ? 'Zapisano' : 'Zapisz' }}</span>
         </button>
 
-        <button
-          type="button"
-          class="icon-btn"
-          title="Edytuj publikację"
-          @click="emit('edit', article)"
-        >
-          <AppIcon name="edit" :size="14" />
-        </button>
+        <template v-if="canManage">
+          <button
+            type="button"
+            class="icon-btn"
+            title="Edytuj swoją publikację"
+            @click="emit('edit', article)"
+          >
+            <AppIcon name="edit" :size="14" />
+          </button>
 
-        <button
-          type="button"
-          class="icon-btn danger"
-          title="Usuń publikację"
-          @click="emit('delete', article.id)"
-        >
-          <AppIcon name="trash" :size="14" />
-        </button>
+          <button
+            type="button"
+            class="icon-btn danger"
+            title="Usuń swoją publikację"
+            @click="emit('delete', article.id)"
+          >
+            <AppIcon name="trash" :size="14" />
+          </button>
+        </template>
       </div>
     </div>
 
@@ -266,6 +282,17 @@ const formatDate = (isoString: string): string => {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   color: var(--text-muted);
+}
+
+.own-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  color: var(--primary);
 }
 
 .author-link {

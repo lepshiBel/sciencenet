@@ -242,7 +242,6 @@ export const useArticleStore = defineStore('articles', () => {
         Boolean(article.isOwn) ||
         article.author.trim().toLowerCase() === currentUser.value.name.trim().toLowerCase();
 
-      // Full-text search across title, abstract/content, author, tags, and private notes
       const matchesSearch =
         !query ||
         article.title.toLowerCase().includes(query) ||
@@ -523,6 +522,104 @@ export const useArticleStore = defineStore('articles', () => {
     notify('Przywrócono domyślny zbiór publikacji');
   };
 
+  // --- Live Academic Network Simulator ---
+  const simulateNetworkActivity = (): void => {
+    if (articles.value.length === 0) return;
+
+    const peers = [
+      'dr hab. Anna Kowalska',
+      'prof. dr hab. Janusz Wiśniewski',
+      'dr inż. Tomasz Kaczmarek',
+      'dr Piotr Zieliński',
+      'dr hab. n. med. Magdalena Lewandowska',
+    ];
+
+    const peerComments = [
+      'Bardzo przejrzysta metodologia! Czy planujecie udostępnić zbiór danych testowych?',
+      'Interesująca zbieżność wyników z naszymi ostatnimi pomiarami laboratoryjnymi.',
+      'Warto byłoby zestawić ten model z podejściem probabilistycznym przy większej próbie.',
+      'Świetnie sformułowane wnioski — dodaję tę publikację do swojej bibliografii.',
+    ];
+
+    const samplePreprints: Omit<Article, 'id' | 'createdAt' | 'likes' | 'isLiked' | 'isSaved' | 'comments'>[] = [
+      {
+        title: 'Szybka estymacja zbieżności stochastycznej w układach wieloagentowych',
+        author: 'dr Piotr Zieliński',
+        isOwn: false,
+        isVerifiedAuthor: true,
+        field: 'Informatyka',
+        publicationType: 'Notatka badawcza',
+        tags: ['stochastyka', 'zbieznosc', 'symulacje'],
+        content:
+          'Wstępne pomiary pokazują, że błąd średniokwadratowy maleje zgodnie z zależnością:\n\n$$\n\\epsilon_n \\approx \\frac{\\sigma}{\\sqrt{n}} + O(n^{-1})\n$$\n\n> Zastosowanie adaptacyjnego kroku skraca czas stabilizacji układu o 28%.',
+      },
+      {
+        title: 'Optymalizacja drzew decyzyjnych w czasie rzeczywistym dla systemów wbudowanych',
+        author: 'dr inż. Tomasz Kaczmarek',
+        isOwn: false,
+        isVerifiedAuthor: true,
+        field: 'Informatyka',
+        publicationType: 'Preprint',
+        tags: ['algorytmy', 'optymalizacja', 'embedded'],
+        content:
+          'Zredukowaliśmy zużycie pamięci podręcznej poprzez kwantyzację progów podziału do 8-bitowych liczb stałoprzecinkowych.\n\n```python\ndef quantize_threshold(val: float, scale: float) -> int:\n    return max(-128, min(127, round(val / scale)))\n```\n\nOpóźnienie inferencji spadło z $4.2\\text{ ms}$ do $1.1\\text{ ms}$.',
+      },
+      {
+        title: 'Spektroskopia ramanowska cienkich warstw tlenku grafenu po wygrzewaniu laserowym',
+        author: 'prof. dr hab. Janusz Wiśniewski',
+        isOwn: false,
+        isVerifiedAuthor: true,
+        field: 'Fizyka',
+        publicationType: 'Notatka badawcza',
+        tags: ['grafen', 'spektroskopia', 'materialy'],
+        content:
+          'Stosunek intensywności pasm $I_D / I_G$ uległ obniżeniu z $1.18$ do $0.42$ po impulsowej obróbce w atmosferze argonu.\n\n> Potwierdza to częściową odbudowę sieci $sp^2$ bez degradacji podłoża kwarcowego.',
+      },
+    ];
+
+    const randomPeer = peers[Math.floor(Math.random() * peers.length)];
+    const roll = Math.random();
+
+    if (roll < 0.45) {
+      // Peer leaves a scientific comment
+      const target = articles.value[Math.floor(Math.random() * articles.value.length)];
+      const commentText = peerComments[Math.floor(Math.random() * peerComments.length)];
+      target.comments.push({
+        id: `com-sim-${Date.now()}`,
+        author: randomPeer,
+        isOwn: false,
+        text: commentText,
+        createdAt: new Date().toISOString(),
+      });
+      notify(`${randomPeer} skomentował(a): „${target.title.slice(0, 32)}...”`, {
+        duration: 4200,
+      });
+    } else if (roll < 0.75) {
+      // Peer endorses a publication
+      const target = articles.value[Math.floor(Math.random() * articles.value.length)];
+      target.likes += 1;
+      notify(`${randomPeer} polecił(a) pracę „${target.title.slice(0, 32)}...”`, {
+        duration: 3600,
+      });
+    } else {
+      // Peer publishes a fresh preprint / research note
+      const template = samplePreprints[Math.floor(Math.random() * samplePreprints.length)];
+      const newPeerPost: Article = {
+        ...template,
+        id: `art-sim-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        likes: Math.floor(Math.random() * 5) + 1,
+        isLiked: false,
+        isSaved: false,
+        comments: [],
+      };
+      articles.value.unshift(newPeerPost);
+      notify(`Nowa publikacja: ${newPeerPost.author} (${newPeerPost.field})`, {
+        duration: 4200,
+      });
+    }
+  };
+
   // --- JSON & BibTeX Export / Import ---
   const exportArticlesJson = (): void => {
     const payload = {
@@ -660,6 +757,7 @@ export const useArticleStore = defineStore('articles', () => {
     selectAuthor,
     resetFilters,
     resetDemoData,
+    simulateNetworkActivity,
     exportArticlesJson,
     exportSavedBibtex,
     importArticlesJson,
