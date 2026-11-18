@@ -45,6 +45,7 @@ export interface Article {
   likes: number;
   isLiked: boolean;
   isSaved: boolean;
+  personalNote?: string; // Private researcher margin note
   comments: Comment[];
 }
 

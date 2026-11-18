@@ -397,6 +397,20 @@ export const useArticleStore = defineStore('articles', () => {
     );
   };
 
+  const updatePersonalNote = (articleId: string, note: string): void => {
+    const target = articles.value.find((a) => a.id === articleId);
+    if (!target) return;
+
+    const trimmed = note.trim();
+    target.personalNote = trimmed || undefined;
+    if (trimmed && !target.isSaved) {
+      target.isSaved = true;
+    }
+    notify(trimmed ? 'Zapisano notatkę badawczą' : 'Usunięto notatkę', {
+      duration: 2200,
+    });
+  };
+
   const addComment = (articleId: string, text: string, author?: string): void => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -481,7 +495,7 @@ export const useArticleStore = defineStore('articles', () => {
     notify('Przywrócono domyślny zbiór publikacji');
   };
 
-  // --- JSON Backup Export / Import ---
+  // --- JSON & BibTeX Export / Import ---
   const exportArticlesJson = (): void => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -498,6 +512,47 @@ export const useArticleStore = defineStore('articles', () => {
     link.click();
     URL.revokeObjectURL(url);
     notify('Wyeksportowano archiwum publikacji (.json)');
+  };
+
+  const exportSavedBibtex = (): void => {
+    const list = savedArticles.value;
+    if (list.length === 0) {
+      notify('Czytelnia jest pusta — brak pozycji do eksportu');
+      return;
+    }
+
+    const entries = list.map((art) => {
+      const year = new Date(art.createdAt).getFullYear();
+      const lastName = (art.author.trim().split(/\s+/).pop() || 'author')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const key = `${lastName || 'ref'}${year}_${art.id.slice(-3)}`;
+      const entryType =
+        art.publicationType === 'Preprint' || art.publicationType === 'Notatka badawcza'
+          ? 'misc'
+          : 'article';
+
+      return [
+        `@${entryType}{${key},`,
+        `  author = {${art.author}},`,
+        `  title = {{${art.title}}},`,
+        `  journal = {ScienceNet (${art.field})},`,
+        `  year = {${year}},`,
+        `  note = {${art.publicationType}}`,
+        `}`,
+      ].join('\n');
+    });
+
+    const blob = new Blob([entries.join('\n\n') + '\n'], {
+      type: 'application/x-bibtex;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sciencenet-czytelnia-${new Date().toISOString().slice(0, 10)}.bib`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify(`Wyeksportowano ${list.length} pozycji do pliku .bib`);
   };
 
   const importArticlesJson = (rawJson: string): boolean => {
@@ -526,6 +581,7 @@ export const useArticleStore = defineStore('articles', () => {
           likes: typeof item.likes === 'number' ? item.likes : 0,
           isLiked: Boolean(item.isLiked),
           isSaved: Boolean(item.isSaved),
+          personalNote: typeof item.personalNote === 'string' ? item.personalNote : undefined,
           comments: Array.isArray(item.comments) ? item.comments : [],
         }));
 
@@ -567,6 +623,7 @@ export const useArticleStore = defineStore('articles', () => {
     deleteArticle,
     toggleLike,
     toggleSave,
+    updatePersonalNote,
     addComment,
     updateComment,
     deleteComment,
@@ -575,6 +632,7 @@ export const useArticleStore = defineStore('articles', () => {
     resetFilters,
     resetDemoData,
     exportArticlesJson,
+    exportSavedBibtex,
     importArticlesJson,
   };
 });
