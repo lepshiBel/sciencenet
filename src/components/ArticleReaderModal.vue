@@ -101,6 +101,58 @@ const printArticle = () => {
   window.print();
 };
 
+const copyObsidianMarkdown = async () => {
+  const current = article.value;
+  if (!current) return;
+
+  const dateIso = current.createdAt.slice(0, 10);
+  const safeTitle = current.title.replace(/"/g, '\\"');
+  const tagsYaml =
+    current.tags.length > 0
+      ? `\ntags:\n${current.tags.map((t) => `  - ${t}`).join('\n')}`
+      : '';
+
+  const frontmatter = [
+    '---',
+    `title: "${safeTitle}"`,
+    `author: "${current.author}"`,
+    `field: "${current.field}"`,
+    `type: "${current.publicationType}"`,
+    `date: ${dateIso}`,
+    `source: "ScienceNet"${tagsYaml}`,
+    '---',
+  ].join('\n');
+
+  const sections: string[] = [
+    frontmatter,
+    '',
+    `# ${current.title}`,
+    `**Autor:** ${current.author} | **Dziedzina:** ${current.field} | **Typ:** ${current.publicationType}`,
+    '',
+    current.content,
+  ];
+
+  if (current.personalNote?.trim()) {
+    sections.push(
+      '',
+      '---',
+      '## Prywatna notatka badawcza',
+      current.personalNote.trim()
+    );
+  }
+
+  const markdown = sections.join('\n');
+
+  try {
+    await navigator.clipboard.writeText(markdown);
+    store.notify('Skopiowano notatkę Markdown (Obsidian) do schowka', {
+      duration: 2800,
+    });
+  } catch {
+    store.notify('Nie udało się uzyskać dostępu do schowka');
+  }
+};
+
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && store.activeArticle && !store.citingArticle) {
     if (editingCommentId.value) {
@@ -167,6 +219,16 @@ onUnmounted(() => {
           </div>
 
           <div class="topbar-controls no-print">
+            <button
+              type="button"
+              class="print-btn"
+              title="Kopiuj pełną notatkę w formacie Markdown dla Obsidian"
+              @click="copyObsidianMarkdown"
+            >
+              <AppIcon name="edit" :size="14" />
+              <span>Kopiuj Markdown</span>
+            </button>
+
             <button
               type="button"
               class="print-btn"
@@ -435,6 +497,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-subtle);
@@ -445,12 +508,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .topbar-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .print-btn {
@@ -465,6 +530,7 @@ onUnmounted(() => {
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .print-btn:hover {
@@ -927,7 +993,6 @@ onUnmounted(() => {
     background: #ffffff !important;
   }
 
-  /* Completely remove #app and toasts from print flow so there are no blank pages */
   body > *:not(.print-reader-root) {
     display: none !important;
   }
