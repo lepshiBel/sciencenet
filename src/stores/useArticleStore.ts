@@ -522,7 +522,17 @@ export const useArticleStore = defineStore('articles', () => {
     notify('Przywrócono domyślny zbiór publikacji');
   };
 
-  // --- Live Academic Network Simulator ---
+  // --- Live Academic Network Simulator (Manual + 3s Auto-Pulse) ---
+  const isAutoSimulating = ref(false);
+  let simulationTimer: ReturnType<typeof setInterval> | null = null;
+
+  const openArticleById = (articleId: string): void => {
+    const found = articles.value.find((a) => a.id === articleId);
+    if (found) {
+      activeArticle.value = found;
+    }
+  };
+
   const simulateNetworkActivity = (): void => {
     if (articles.value.length === 0) return;
 
@@ -541,7 +551,10 @@ export const useArticleStore = defineStore('articles', () => {
       'Świetnie sformułowane wnioski — dodaję tę publikację do swojej bibliografii.',
     ];
 
-    const samplePreprints: Omit<Article, 'id' | 'createdAt' | 'likes' | 'isLiked' | 'isSaved' | 'comments'>[] = [
+    const samplePreprints: Omit<
+      Article,
+      'id' | 'createdAt' | 'likes' | 'isLiked' | 'isSaved' | 'comments'
+    >[] = [
       {
         title: 'Szybka estymacja zbieżności stochastycznej w układach wieloagentowych',
         author: 'dr Piotr Zieliński',
@@ -591,22 +604,27 @@ export const useArticleStore = defineStore('articles', () => {
         text: commentText,
         createdAt: new Date().toISOString(),
       });
-      notify(`${randomPeer} skomentował(a): „${target.title.slice(0, 32)}...”`, {
-        duration: 4200,
+      notify(`${randomPeer} skomentował(a): „${target.title.slice(0, 30)}...”`, {
+        actionLabel: 'Zobacz',
+        duration: 4500,
+        onAction: () => openArticleById(target.id),
       });
     } else if (roll < 0.75) {
       // Peer endorses a publication
       const target = articles.value[Math.floor(Math.random() * articles.value.length)];
       target.likes += 1;
-      notify(`${randomPeer} polecił(a) pracę „${target.title.slice(0, 32)}...”`, {
-        duration: 3600,
+      notify(`${randomPeer} polecił(a) pracę „${target.title.slice(0, 30)}...”`, {
+        actionLabel: 'Zobacz',
+        duration: 4200,
+        onAction: () => openArticleById(target.id),
       });
     } else {
       // Peer publishes a fresh preprint / research note
       const template = samplePreprints[Math.floor(Math.random() * samplePreprints.length)];
+      const newId = `art-sim-${Date.now()}`;
       const newPeerPost: Article = {
         ...template,
-        id: `art-sim-${Date.now()}`,
+        id: newId,
         createdAt: new Date().toISOString(),
         likes: Math.floor(Math.random() * 5) + 1,
         isLiked: false,
@@ -615,9 +633,33 @@ export const useArticleStore = defineStore('articles', () => {
       };
       articles.value.unshift(newPeerPost);
       notify(`Nowa publikacja: ${newPeerPost.author} (${newPeerPost.field})`, {
-        duration: 4200,
+        actionLabel: 'Zobacz',
+        duration: 4500,
+        onAction: () => openArticleById(newId),
       });
     }
+  };
+
+  const stopAutoSimulation = (): void => {
+    if (simulationTimer !== null) {
+      clearInterval(simulationTimer);
+      simulationTimer = null;
+    }
+    isAutoSimulating.value = false;
+  };
+
+  const toggleAutoSimulation = (): void => {
+    if (isAutoSimulating.value) {
+      stopAutoSimulation();
+      notify('Zatrzymano symulację aktywności sieci', { duration: 2200 });
+      return;
+    }
+
+    isAutoSimulating.value = true;
+    simulateNetworkActivity();
+    simulationTimer = setInterval(() => {
+      simulateNetworkActivity();
+    }, 3000);
   };
 
   // --- JSON & BibTeX Export / Import ---
@@ -757,7 +799,10 @@ export const useArticleStore = defineStore('articles', () => {
     selectAuthor,
     resetFilters,
     resetDemoData,
+    isAutoSimulating,
     simulateNetworkActivity,
+    toggleAutoSimulation,
+    stopAutoSimulation,
     exportArticlesJson,
     exportSavedBibtex,
     importArticlesJson,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useArticleStore } from '../stores/useArticleStore';
 import { FIELD_STYLES } from '../data/mockArticles';
@@ -43,6 +43,10 @@ const handleFileChange = (event: Event) => {
   };
   reader.readAsText(file);
 };
+
+onUnmounted(() => {
+  store.stopAutoSimulation();
+});
 </script>
 
 <template>
@@ -51,22 +55,36 @@ const handleFileChange = (event: Event) => {
     <div class="card sidebar-card pulse-card">
       <div class="pulse-header">
         <h3 class="sidebar-title pulse-title">
-          <span class="live-dot"></span>
+          <span class="live-dot" :class="{ pulsing: store.isAutoSimulating }"></span>
           <span>Aktywność sieci</span>
         </h3>
-        <span class="online-count">5 badaczy online</span>
+        <span class="online-count">
+          {{ store.isAutoSimulating ? 'Auto: 3s' : '5 badaczy online' }}
+        </span>
       </div>
       <p class="info-text">
-        Zasymuluj nowe komentarze, polecenia lub preprinty od innych naukowców.
+        Zasymuluj nowe komentarze, polecenia lub preprinty i kliknij „Zobacz” w powiadomieniu.
       </p>
-      <button
-        type="button"
-        class="simulate-btn"
-        @click="store.simulateNetworkActivity"
-      >
-        <AppIcon name="trending" :size="14" />
-        <span>Odśwież aktywność sieci</span>
-      </button>
+
+      <div class="pulse-controls">
+        <button
+          type="button"
+          class="simulate-btn"
+          @click="store.simulateNetworkActivity"
+        >
+          <AppIcon name="trending" :size="14" />
+          <span>Pojedynczy impuls</span>
+        </button>
+
+        <button
+          type="button"
+          class="auto-pulse-btn"
+          :class="{ active: store.isAutoSimulating }"
+          @click="store.toggleAutoSimulation"
+        >
+          <span>{{ store.isAutoSimulating ? 'Stop (3s)' : 'Auto (3s)' }}</span>
+        </button>
+      </div>
     </div>
 
     <!-- Top Liked Publications -->
@@ -245,34 +263,73 @@ const handleFileChange = (event: Event) => {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
+.live-dot.pulsing {
+  animation: pulseRing 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.65);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
 .online-count {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-.simulate-btn {
-  width: 100%;
+.pulse-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+}
+
+.simulate-btn,
+.auto-pulse-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 11px;
   border-radius: var(--radius-md);
+  font-size: 0.79rem;
+  font-weight: 600;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.simulate-btn {
   border: 1px solid var(--primary-border);
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: background-color 0.15s, transform 0.1s;
 }
 
 .simulate-btn:hover {
   background: var(--bg-hover);
 }
 
-.simulate-btn:active {
-  transform: scale(0.98);
+.auto-pulse-btn {
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.auto-pulse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.auto-pulse-btn.active {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger);
 }
 
 .popular-list {
