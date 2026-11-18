@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import type {
   Article,
   ArticlePayload,
@@ -8,6 +8,7 @@ import type {
 } from '../types/article';
 import { SCIENCE_FIELDS, PUBLICATION_TYPES } from '../data/mockArticles';
 import AppIcon from './AppIcon.vue';
+import RichTextRenderer from './RichTextRenderer.vue';
 
 const props = defineProps<{
   editingArticle?: Article | null;
@@ -21,6 +22,9 @@ const emit = defineEmits<{
 }>();
 
 const isExpanded = ref(false);
+const editorTab = ref<'write' | 'preview'>('write');
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
+
 const title = ref('');
 const author = ref(props.defaultAuthor || '');
 const field = ref<ScienceField>('Informatyka');
@@ -36,6 +40,7 @@ watch(
   (article) => {
     errorMsg.value = '';
     tagInput.value = '';
+    editorTab.value = 'write';
     if (article) {
       isExpanded.value = true;
       title.value = article.title;
@@ -69,10 +74,39 @@ watch(
 
 const collapseForm = () => {
   errorMsg.value = '';
+  editorTab.value = 'write';
   if (props.editingArticle) {
     emit('cancel');
   }
   isExpanded.value = false;
+};
+
+// Insert formatting snippet at cursor position
+const insertSnippet = async (before: string, after: string, placeholder: string) => {
+  editorTab.value = 'write';
+  await nextTick();
+
+  const el = textareaRef.value;
+  if (!el) {
+    content.value += `${before}${placeholder}${after}`;
+    return;
+  }
+
+  const start = el.selectionStart ?? content.value.length;
+  const end = el.selectionEnd ?? content.value.length;
+  const selected = content.value.slice(start, end) || placeholder;
+
+  content.value =
+    content.value.slice(0, start) +
+    before +
+    selected +
+    after +
+    content.value.slice(end);
+
+  await nextTick();
+  el.focus();
+  const cursorStart = start + before.length;
+  el.setSelectionRange(cursorStart, cursorStart + selected.length);
 };
 
 const addTag = () => {
@@ -126,6 +160,7 @@ const handleSubmit = () => {
     content.value = '';
     imageUrl.value = '';
     errorMsg.value = '';
+    editorTab.value = 'write';
     isExpanded.value = false;
   }
 };
@@ -254,18 +289,84 @@ const handleSubmit = () => {
     </div>
 
     <div class="form-group">
-      <div class="label-with-hint">
+      <div class="editor-header-bar">
         <label for="art-content">Abstrakt / Treść publikacji *</label>
-        <span class="syntax-hint">
-          Formatowanie: <code>`wzór/kod`</code>, <code>```blok kodu```</code>, <code>&gt; teza</code>
-        </span>
+
+        <div class="editor-controls">
+          <div class="format-toolbar">
+            <button
+              type="button"
+              class="fmt-btn"
+              title="Wstaw wzór w linii ($...$)"
+              @click="insertSnippet('$', '$', 'E = mc^2')"
+            >
+              Wzór $x$
+            </button>
+            <button
+              type="button"
+              class="fmt-btn"
+              title="Wstaw równanie blokowe ($$...$$)"
+              @click="insertSnippet('\n$$\n', '\n$$\n', '\\Delta E = h \\cdot \\nu')"
+            >
+              Równanie
+            </button>
+            <button
+              type="button"
+              class="fmt-btn"
+              title="Wstaw tezę lub cytat (> ...)"
+              @click="insertSnippet('\n> ', '\n', 'Kluczowy wniosek z przeprowadzonych badań.')"
+            >
+              Teza
+            </button>
+            <button
+              type="button"
+              class="fmt-btn"
+              title="Wstaw blok kodu (```...```)"
+              @click="insertSnippet('\n```typescript\n', '\n```\n', '// algorytm')"
+            >
+              Kod
+            </button>
+          </div>
+
+          <div class="mode-switch">
+            <button
+              type="button"
+              class="mode-btn"
+              :class="{ active: editorTab === 'write' }"
+              @click="editorTab = 'write'"
+            >
+              Edycja
+            </button>
+            <button
+              type="button"
+              class="mode-btn"
+              :class="{ active: editorTab === 'preview' }"
+              @click="editorTab = 'preview'"
+            >
+              Podgląd
+            </button>
+          </div>
+        </div>
       </div>
+
       <textarea
+        v-if="editorTab === 'write'"
         id="art-content"
+        ref="textareaRef"
         v-model="content"
-        rows="4"
+        rows="5"
         placeholder="Przedstaw cel badań, metodologię oraz główne wnioski..."
       ></textarea>
+
+      <div v-else class="preview-pane">
+        <RichTextRenderer
+          v-if="content.trim()"
+          :content="content"
+        />
+        <p v-else class="preview-empty">
+          Wpisz treść w zakładce „Edycja”, aby zobaczyć podgląd wzorów, kodu i cytatów.
+        </p>
+      </div>
     </div>
 
     <div class="form-actions">
@@ -397,10 +498,10 @@ const handleSubmit = () => {
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
-.label-with-hint {
+.editor-header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -408,17 +509,74 @@ const handleSubmit = () => {
   flex-wrap: wrap;
 }
 
-.syntax-hint {
+.editor-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fmt-btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.fmt-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border-color: var(--border-strong);
+}
+
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.mode-btn {
+  padding: 3px 9px;
+  border: none;
+  background: transparent;
   font-size: 0.74rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
-.syntax-hint code {
-  font-family: var(--font-mono);
-  background: var(--bg-subtle);
+.mode-btn.active {
+  background: var(--bg-card);
+  color: var(--primary);
+}
+
+.preview-pane {
+  min-height: 112px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
-  padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.preview-empty {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .form-group label {
@@ -501,7 +659,7 @@ const handleSubmit = () => {
 
 .form-group textarea {
   resize: vertical;
-  min-height: 88px;
+  min-height: 112px;
 }
 
 .form-actions {
