@@ -1,25 +1,51 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useArticleStore } from '../stores/useArticleStore';
-import { FIELD_STYLES } from '../data/mockArticles';
+import type { Article, ArticlePayload } from '../types/article';
+import ArticleCard from '../components/ArticleCard.vue';
+import ArticleForm from '../components/ArticleForm.vue';
 import AppIcon from '../components/AppIcon.vue';
 
 const store = useArticleStore();
+const router = useRouter();
 
-const formatDate = (isoString: string): string => {
-  return new Intl.DateTimeFormat('pl-PL', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(isoString));
+const editingArticle = ref<Article | null>(null);
+
+const startEditing = (article: Article) => {
+  editingArticle.value = article;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const handleEditSubmit = (payload: ArticlePayload) => {
+  if (!editingArticle.value) return;
+  store.updateArticle(editingArticle.value.id, payload);
+  editingArticle.value = null;
+};
+
+const handleSelectTag = (tag: string) => {
+  store.selectTag(tag);
+  router.push('/');
+};
+
+const handleSelectAuthor = (authorName: string) => {
+  store.selectAuthor(authorName);
+  router.push('/');
 };
 </script>
 
 <template>
   <section class="saved-view">
     <div class="card saved-header">
-      <div>
-        <h1>Czytelnia badacza</h1>
-        <p>Zapisane publikacje oraz Twoje prywatne notatki do późniejszej analizy.</p>
+      <div class="header-left">
+        <RouterLink to="/" class="back-pill">
+          <span>←</span>
+          <span>Tablica</span>
+        </RouterLink>
+        <div>
+          <h1>Czytelnia badacza</h1>
+          <p>Zapisane publikacje oraz Twoje prywatne notatki do późniejszej analizy.</p>
+        </div>
       </div>
 
       <div class="header-right">
@@ -40,6 +66,16 @@ const formatDate = (isoString: string): string => {
       </div>
     </div>
 
+    <!-- Inline Edit Form when editing a saved article -->
+    <ArticleForm
+      v-if="editingArticle"
+      :editing-article="editingArticle"
+      :default-author="store.currentUser.name"
+      :avatar-url="store.currentUser.avatarUrl"
+      @submit="handleEditSubmit"
+      @cancel="editingArticle = null"
+    />
+
     <div v-if="store.savedArticles.length === 0" class="card empty-saved">
       <div class="empty-icon">
         <AppIcon name="bookmark" :size="26" />
@@ -56,90 +92,26 @@ const formatDate = (isoString: string): string => {
     </div>
 
     <div v-else class="saved-grid">
-      <article
+      <ArticleCard
         v-for="article in store.savedArticles"
         :key="article.id"
-        class="card saved-item"
-      >
-        <div class="saved-item-top">
-          <div class="badges-group">
-            <span
-              class="field-badge"
-              :style="{
-                backgroundColor: FIELD_STYLES[article.field].bg,
-                color: FIELD_STYLES[article.field].text,
-                borderColor: FIELD_STYLES[article.field].border,
-              }"
-            >
-              {{ article.field }}
-            </span>
-            <span class="type-pill">{{ article.publicationType }}</span>
-          </div>
-
-          <button
-            type="button"
-            class="remove-btn"
-            @click="store.toggleSave(article.id)"
-          >
-            <AppIcon name="close" :size="13" />
-            <span>Usuń z czytelni</span>
-          </button>
-        </div>
-
-        <h2 class="saved-title" @click="store.activeArticle = article">
-          {{ article.title }}
-        </h2>
-
-        <p class="saved-meta">
-          {{ article.author }} • {{ formatDate(article.createdAt) }}
-        </p>
-
-        <p class="saved-excerpt">
-          {{ article.content }}
-        </p>
-
-        <div
-          v-if="article.personalNote"
-          class="saved-note-preview"
-          @click="store.activeArticle = article"
-        >
-          <span class="note-label">Twoja notatka:</span>
-          <span>{{ article.personalNote }}</span>
-        </div>
-
-        <div class="saved-footer">
-          <div class="footer-actions">
-            <button
-              type="button"
-              class="open-btn"
-              @click="store.activeArticle = article"
-            >
-              <AppIcon name="book-open" :size="14" />
-              <span>{{ article.personalNote ? 'Otwórz i edytuj notatkę' : 'Otwórz i dodaj notatkę' }}</span>
-            </button>
-
-            <button
-              type="button"
-              class="cite-btn"
-              @click="store.citingArticle = article"
-            >
-              <AppIcon name="quote" :size="14" />
-              <span>Cytuj</span>
-            </button>
-          </div>
-
-          <span class="stats-inline">
-            {{ article.likes }} polubień • {{ article.comments.length }} komentarzy
-          </span>
-        </div>
-      </article>
+        :article="article"
+        @toggle-like="store.toggleLike"
+        @toggle-save="store.toggleSave"
+        @edit="startEditing"
+        @delete="store.deleteArticle"
+        @read="store.activeArticle = $event"
+        @cite="store.citingArticle = $event"
+        @select-tag="handleSelectTag"
+        @select-author="handleSelectAuthor"
+      />
     </div>
   </section>
 </template>
 
 <style scoped>
 .saved-view {
-  max-width: 820px;
+  max-width: 780px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -147,7 +119,7 @@ const formatDate = (isoString: string): string => {
 }
 
 .saved-header {
-  padding: 20px 24px;
+  padding: 18px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -155,14 +127,40 @@ const formatDate = (isoString: string): string => {
   flex-wrap: wrap;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.back-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.back-pill:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
 .saved-header h1 {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .saved-header p {
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -257,148 +255,6 @@ const formatDate = (isoString: string): string => {
 .saved-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.saved-item {
-  padding: 18px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.saved-item-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.badges-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.field-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-}
-
-.type-pill {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  padding: 2px 7px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-
-.remove-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.remove-btn:hover {
-  color: var(--danger);
-}
-
-.saved-title {
-  font-family: var(--font-serif);
-  font-size: 1.24rem;
-  font-weight: 600;
-  color: var(--text-main);
-  cursor: pointer;
-}
-
-.saved-title:hover {
-  color: var(--primary);
-}
-
-.saved-meta {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.saved-excerpt {
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.saved-note-preview {
-  padding: 8px 12px;
-  border-left: 3px solid var(--primary);
-  background: var(--primary-soft);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  font-size: 0.83rem;
-  color: var(--text-main);
-  cursor: pointer;
-}
-
-.note-label {
-  font-weight: 700;
-  color: var(--primary);
-  margin-right: 6px;
-}
-
-.saved-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
-.footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.open-btn,
-.cite-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.open-btn {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border: 1px solid var(--primary-border);
-}
-
-.cite-btn {
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-
-.stats-inline {
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  color: var(--text-muted);
+  gap: 14px;
 }
 </style>
